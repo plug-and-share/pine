@@ -42,20 +42,22 @@ def command():
 	'''
 	Show the available commands and parse them
 	'''
-	usage = 'TODO_LIKE_SNORT pine <command> <args>'
-	parser = optparse.OptionParser(usage=usage)
+	usage = 'Cupid\nVersion 0.0.0\nBy The Cupid Team: https://github.com/plug-and-share/\nUsing python >=3'
+	parser = optparse.OptionParser(usage)
 	parser.add_option('-r', '--run', action='store_true', 
 			help='Start running pine')
 	parser.add_option('-p', '--pause', action='store_true', 
 			help='Pause running pine')
 	parser.add_option('-s', '--stop', action='store_true', 
 			help='Shutdown pine')
-	parser.add_option('-c', '--collaborate', type='string', 
+	parser.add_option('-c', '--collaborate', action='store_true', 
 			help='Allocate the machine resource to some application')
 	parser.add_option('-R', '--resource', action='store_true', 
 			help='Manage the resource usage of the machine')
 	parser.add_option('-C', '--config', action='store_true',
 			help='Show the actual pine configuration')
+	parser.add_option('-v', '--version', action='store_true',
+			help='Cupid version number')
 	return parser.parse_args()
 
 if __name__ == '__main__':
@@ -72,7 +74,5 @@ if __name__ == '__main__':
 		print('resource')
 	elif opt.config:
 		print('config')
-
-
-
-
+	elif opt.version:
+		print('Cupid\nVersion 0.0.0\nBy The Cupid Team: https://github.com/plug-and-share/pine\nUsing python >=3')
