@@ -6,37 +6,7 @@ DATE: 12/01/2016
 AUTHORS: Canabarro, Dias, Tashiro
 PYTHON_VERSION: v3
 '''
-import optparse
-import socket
-
-def is_running():
-	'''
-	Verify if exist a pine process running
-	'''
-	with socket.socket() as sck:
-		try:
-			sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			sck.bind(('localhost', 50000))
-			sck.connect(('localhost', 54321))
-			sck.settimeout(1)
-			data = sck.recv(1024)
-			print(data)
-		except:
-			return False
-	return True
-
-def run():
-	'''
-	Start the pine process
-	'''
-	if not is_running():
-		with socket.socket() as sck:
-			sck.bind(('localhost', 54321))
-			sck.listen(1)
-			while True:
-				conn, addr = sck.accept()
-				print('sending...')
-				conn.send(b'hello')								
+import optparse							
 
 def command():
 	'''
