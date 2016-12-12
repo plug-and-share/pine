@@ -1,10 +1,42 @@
 '''
-LICENCE_DESCRIPTION
+Copyright (c) 2016-2017 Plug-and-share
+All rights reserved.
+The license below extends only to copyright in the software and shall
+not be construed as granting a license to any other intellectual
+property including but not limited to intellectual property relating
+to a hardware implementation of the functionality of the software
+licensed hereunder.  You may use the software subject to the license
+terms below provided that you ensure that this notice is replicated
+unmodified and in its entirety in all distributions of the software,
+modified or unmodified, in source code or in binary form.
 
-version=0.1
-date=12/08/2016
-authors=Tashiro
-python=3
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met: redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer;
+redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution;
+neither the name of the copyright holders nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+VERSION        v0.0.0
+DATE           12/08/2016
+AUTHORS        TASHIRO
+PYTHON_VERSION v3
 '''
 import select
 import socket
@@ -18,8 +50,7 @@ class Log:
 	possue  CODE_SIZE,  o  payload representa o conteudo da mensagem e o 
 	EOF indica o fim da mensagem.		
 	'''
-	EOL1 = b'\n\n'
-	EOL2 = b'\n\r\n'
+	EOL = b'\n\r\t'
 	
 	def __init__(self):
 		self.sock = socket.socket()
@@ -44,8 +75,8 @@ class Log:
 						# Nao vai funcionar se receber do broker
 						# Alterar para suportar o proto-protocol
 						req[fileno] += conns[fileno].recv(1024)
-						if Log.EOL1 in req[fileno] and Log.EOL2 in req[fileno]:
-							resp[fileno] = self.action(int(req[fileno][:-5]))
+						if Log.EOL in req[fileno]:
+							resp[fileno] = self.action(int(req[fileno][:-3]))
 							self.epoll.modify(fileno, select.EPOLLOUT)
 					elif event & select.EPOLLOUT:
 						bw = conns[fileno].send(resp[fileno])
@@ -62,26 +93,41 @@ class Log:
 			self.epoll.close()
 			self.sock.close()
 
-	def action(self, code):
-		print('code:', code)
-		if code == 0x0: # run code
-			return b'run code received'
-		elif code == 0x1: # pause code
-			# self.pause()
-			return b'pause code received'
-		elif code == 0x2: # stop code
-			# self.stop()
-			return b'stop code received'
-		elif code == 0x3: # collaborate code
-			# self.collaborate()
-			return b'collaborate code received'
-		elif code == 0x4: # resource code
-			# param = self.parseparam()
-			# self.resource(param)
-			return b'resource code received'
-		elif code == 0x5: # config code
-			# self.config()
-			return b'config code received'
+
+	def pause(self):
+		# Antes precisa de um metodo para pausar a vm TODO
+		# Mandar uma mensagem para o UI avisando que foi pausado TODO
+		msg = b''		
+		while 1:
+			while EOL not in msg:
+				msg += self.sock.recv(1024)
+			code = msg[:2]
+			if code == b'00': # user ask to rerunning
+				return b'rerunning'
+			elif code == b'02': # user ask to stop
+				self.stop() # Precisa comunicar com a vm e com o broker TODO
+
+	def stop(self):
+		pass
+
+	def collaborate(self, id):
+		pass
+
+	def resource(self, param):
+		pass
+
+	def action(self, msg):
+		code, payload = msg[:2], msg[2:-3] # the two frist 
+		if code == b'00':
+			return b'already running'
+		elif code == b'01':
+			return self.pause()
+		elif code == b'02': # stop code
+			return self.stop()		
+		elif code == b'03': # collaborate code
+			return self.collaborate(payload)
+		elif code == b'04': # resource code
+			return self.resource(payload)
 		
 if __name__ == '__main__':
 	pine_log = Log()

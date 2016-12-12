@@ -34,36 +34,70 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 VERSION        v0.0.0
-DATE           12/08/2016
-AUTHORS        TASHIRO
+DATE           12/12/2016
+AUTHORS        CANABARRO,DIAS,TASHIRO
 PYTHON_VERSION v3
 '''
-import socket
+import branch
 
-class Branch:
+class Blinker:
 	'''
-	Realiza a comunicação entre o Log e um serviço TODO
-	'''
-	EOF = '\n\r\t'
+	[code|feedback_type|EOF]
 
-	def __init__(self, service_port):
-		self.sock = socket.socket()
-		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.sock.bind(('0.0.0.0', service_port))
-		try:
-			self.sock.connect(('0.0.0.0', 65500)) # conecta ao Log usando sua porta padrão
-		except ConnectionRefusedError:
-			pass # O servico nao esta rodando
-		
-	def send(self, msg):
-		self.sock.sendall(msg)
-		
-	def recv(self):
-		msg = b''
-		while EOF not in msg:
-			msg += self.sock.recv(1024)
-		return msg
-		
-if __name__ == '__main__':
-	test_branch = Branch(60000)
-	test_branch.send(b'Hello World')
+	feedback_types:
+		-ok|received
+		-bad|received but an error occurs
+		-not sure|send again
+	'''
+	def __init__(self, options, args):
+		self.options = options
+		self.args = args
+		self.branch = Branch(65499)
+
+	def run(self):
+		self.branch.send(b'00' + b'\n\r\t') # code + EOF
+		feedback = self.branch.recv()
+		code, feedbackt = feedback[:2], feedback[2:-3]
+		if code != b'00':
+			pass # TODO o que fazer se isso acontencer
+		if feedbackt == 	
+
+	def pause(self):
+		pass
+
+	def stop(self):
+		pass
+
+	def collaborate(self, id):
+		pass
+
+	def resource(self, param):
+		pass
+
+	def config(self):
+		'''
+		STATE     running, paused, stopped
+		VCPU      N_DE_CPUS
+		CPU_SET   e.g. x86
+		CPU_USAGE 0-100%
+		REAL TIME
+			CPU USAGE
+			RAM USAGE
+		IF COLLABORATING SHOW
+			EXPLORATION PROGRESS X/Y
+		'''
+		pass
+
+	def blink(self):
+		if self.options.run:
+			self.run()
+		elif self.options.pause:
+			self.pause()
+		elif self.options.stop:
+			self.stop()
+		elif self.options.collaborate:
+			self.collaborate(self.options.collaborate) # verificar se eh assim
+		elif self.options.resource:
+			self.resource(self.options.resource) # idem
+		elif self.options.config:
+			self.config()
