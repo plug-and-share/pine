@@ -44,26 +44,19 @@ class Branch:
 	'''
 	Realiza a comunicação entre o Log e um serviço TODO
 	'''
-	EOF = '\n\r\t'
+	EOF = b'\n\r\t'
 
 	def __init__(self, service_port):
 		self.sock = socket.socket()
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.sock.bind(('0.0.0.0', service_port))
-		try:
-			self.sock.connect(('0.0.0.0', 65500)) # conecta ao Log usando sua porta padrão
-		except ConnectionRefusedError:
-			pass # O servico nao esta rodando
+		self.sock.connect(('0.0.0.0', 65500))
 		
 	def send(self, msg):
 		self.sock.sendall(msg)
 		
 	def recv(self):
 		msg = b''
-		while EOF not in msg:
+		while Branch.EOF not in msg:
 			msg += self.sock.recv(1024)
 		return msg
-		
-if __name__ == '__main__':
-	test_branch = Branch(60000)
-	test_branch.send(b'Hello World')

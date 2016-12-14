@@ -38,12 +38,13 @@ DATE           12/12/2016
 AUTHORS        CANABARRO,DIAS,TASHIRO
 PYTHON_VERSION v3
 '''
+import subprocess
+
 import branch
 
 class Blinker:
 	'''
 	[code|feedback_type|EOF]
-
 	feedback_types:
 		-ok|received
 		-bad|received but an error occurs
@@ -52,15 +53,42 @@ class Blinker:
 	def __init__(self, options, args):
 		self.options = options
 		self.args = args
-		self.branch = Branch(65499)
 
 	def run(self):
-		self.branch.send(b'00' + b'\n\r\t') # code + EOF
-		feedback = self.branch.recv()
-		code, feedbackt = feedback[:2], feedback[2:-3]
-		if code != b'00':
-			pass # TODO o que fazer se isso acontencer
-		if feedbackt == 	
+		'''
+		Sao tres situacoes:
+			caso 1: avisa o usuario que o pine esta ligado
+			caso 2: comeca a rodar novamente (pede pro usuario confirmar a acao)
+			caso 3: comeca a rodar		
+		Algoritmo:
+			Testa se o serviço esta online
+				Se sim verifica se ele esta rodando ou esta pausado
+					Se ele esta rodando entao avisa o usuario
+					Se estiver pausado pergunta pro usuario se ele quer despausar
+				Se não intancia um processo do Log e encerra esse programa
+		'''
+		try:
+			lbranch = branch.Branch(65499)
+		except ConnectionRefusedError:
+			subprocess.Popen(['python3', 'log.py']) # caminho para o Log, neste teste eh apenas python3 Log.py
+			print('Feedback: pine is running. To confirm that use pine --config to check the state.')
+			return
+		lbranch.send(b'00' + b'\n\r\t')
+		resp = lbranch.recv()
+		code, payload = resp[:2], resp[2:-3]
+		if code == b'00':
+			if payload == b'running':
+				print('Feedback: pine is already running. No action was taken.')
+			elif payload == b'paused':
+				action = ''
+				while action not in ('Y', 'y', 'n', 'N'):
+					action = input('Warning: pine was paused. You want to rerun it? [Y/n]')
+				if action == 'Y' or action == 'y':
+					print('blinker.py:DEV: self.rerun()')
+			else:
+				print('Error: Communication failed. Please try again later.')
+		else: 
+			print('Error: Something uncommon. Please try again later.')
 
 	def pause(self):
 		pass
@@ -74,19 +102,16 @@ class Blinker:
 	def resource(self, param):
 		pass
 
-	def config(self):
-		'''
-		STATE     running, paused, stopped
-		VCPU      N_DE_CPUS
-		CPU_SET   e.g. x86
-		CPU_USAGE 0-100%
-		REAL TIME
-			CPU USAGE
-			RAM USAGE
-		IF COLLABORATING SHOW
-			EXPLORATION PROGRESS X/Y
-		'''
-		pass
+	def config(self): # fazer metodo para obter os dados
+		print('\npine configuration:')
+		print('	state        ', '{running, paused, stopped}')
+		print('	vm_vcpu      ', '1..*')
+		print('	vm_cpu_set   ', 'i.e. x86')
+		print('	vm_cpu_usage ', '0-100%')
+		print('	vm_ram_usage ', '0..host_ram')
+		if True: # esta realizando uma exploracao TODO
+			print('	progress     ', 'X/100%')
+		print()
 
 	def blink(self):
 		if self.options.run:
@@ -101,3 +126,5 @@ class Blinker:
 			self.resource(self.options.resource) # idem
 		elif self.options.config:
 			self.config()
+		else:
+			print('Cupid\nVersion 0.0.0\nBy The Cupid Team: https://github.com/plug-and-share/pine\nUsing python >=3')

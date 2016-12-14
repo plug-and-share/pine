@@ -50,10 +50,11 @@ class Log:
 	possue  CODE_SIZE,  o  payload representa o conteudo da mensagem e o 
 	EOF indica o fim da mensagem.		
 	'''
-	EOL = b'\n\r\t'
+	EOF = b'\n\r\t'
 	
 	def __init__(self):
 		self.sock = socket.socket()
+		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.sock.bind(('localhost', 65500))
 		self.sock.listen(5)
 		self.epoll = select.epoll()
@@ -72,11 +73,9 @@ class Log:
 						conns[conn.fileno()] = conn
 						req[conn.fileno()] = b''
 					elif event & select.EPOLLIN:
-						# Nao vai funcionar se receber do broker
-						# Alterar para suportar o proto-protocol
 						req[fileno] += conns[fileno].recv(1024)
-						if Log.EOL in req[fileno]:
-							resp[fileno] = self.action(int(req[fileno][:-3]))
+						if Log.EOF in req[fileno]:						
+							resp[fileno] = self.action(req[fileno][:-3])
 							self.epoll.modify(fileno, select.EPOLLOUT)
 					elif event & select.EPOLLOUT:
 						bw = conns[fileno].send(resp[fileno])
@@ -93,6 +92,8 @@ class Log:
 			self.epoll.close()
 			self.sock.close()
 
+	def run(self):
+		return b'00' + b'running' + Log.EOF
 
 	def pause(self):
 		# Antes precisa de um metodo para pausar a vm TODO
@@ -119,14 +120,14 @@ class Log:
 	def action(self, msg):
 		code, payload = msg[:2], msg[2:-3] # the two frist 
 		if code == b'00':
-			return b'already running'
+			return self.run()
 		elif code == b'01':
 			return self.pause()
-		elif code == b'02': # stop code
+		elif code == b'02':
 			return self.stop()		
-		elif code == b'03': # collaborate code
+		elif code == b'03': 
 			return self.collaborate(payload)
-		elif code == b'04': # resource code
+		elif code == b'04':
 			return self.resource(payload)
 		
 if __name__ == '__main__':
