@@ -38,6 +38,7 @@ DATE            12/01/2016
 AUTHORS         Canabarro, Dias, Tashiro
 PYTHON_VERSION: v3
 '''
+#!/usr/bin/python3
 import optparse
 
 import blinker				
