@@ -40,6 +40,8 @@ PYTHON_VERSION v3
 '''
 import select
 import socket
+import os # Log.stop() temporary solution
+import signal # Log.stop() temporary solution
 
 class Log:
 	'''
@@ -47,8 +49,8 @@ class Log:
 	UI.  A comunicacao eh  feita via  TCP e sua porta padrao eh a 65500. 
 	As  mensagens  enviadas  para  o  Log  possuem o  seguinte  formato:  
 	[code|payload|EOF],  em que o code identifica  o tipo de  mensagem e 
-	possue  CODE_SIZE,  o  payload representa o conteudo da mensagem e o 
-	EOF indica o fim da mensagem.		
+	possue  um  byte,  o  payload  representa o conteudo da  mensagem  e 
+	pode possuir um tamanho arbitrario e o EOF indica o fim da mensagem.		
 	'''
 	EOF = b'\n\r\t'
 	
@@ -75,8 +77,9 @@ class Log:
 					elif event & select.EPOLLIN:
 						req[fileno] += conns[fileno].recv(1024)
 						if Log.EOF in req[fileno]:						
-							resp[fileno] = self.action(req[fileno][:-3])
-							self.epoll.modify(fileno, select.EPOLLOUT)
+							resp[fileno] = self.action(req[fileno][:-3], conns[fileno])
+							if resp[fileno] != b'':
+								self.epoll.modify(fileno, select.EPOLLOUT)
 					elif event & select.EPOLLOUT:
 						bw = conns[fileno].send(resp[fileno])
 						resp[fileno] = resp[fileno][bw:]
@@ -92,24 +95,30 @@ class Log:
 			self.epoll.close()
 			self.sock.close()
 
-	def run(self):
-		return b'00' + b'running' + Log.EOF
-
-	def pause(self):
-		# Antes precisa de um metodo para pausar a vm TODO
-		# Mandar uma mensagem para o UI avisando que foi pausado TODO
-		msg = b''		
+	def pause(self, conn):
+		# self.pause_vm()
+		conn.sendall(b'\x01' + b'pause' + Log.EOF)
+		conn.close()
 		while 1:
-			while EOL not in msg:
-				msg += self.sock.recv(1024)
-			code = msg[:2]
-			if code == b'00': # user ask to rerunning
-				return b'rerunning'
-			elif code == b'02': # user ask to stop
-				self.stop() # Precisa comunicar com a vm e com o broker TODO
+			conn, addr = self.sock.accept()
+			msg = b''
+			while Log.EOF not in msg:
+				msg += conn.recv(1024)
+			code = msg[:1]
+			if code == b'\x00':
+				conn.sendall(b'\x00' +  b'paused' + Log.EOF)
+				conn.close()
+				return b''
+			elif code == b'\x01':
+				conn.sendall(b'\x01' + b'paused' + Log.EOF)
+				conn.close()
+			elif code == b'\x02':
+				self.stop()
 
-	def stop(self):
-		pass
+	def stop(self): # temporary solution TODO(ver as consequencias dessa solucao)
+		print('Feedback: pine was stopped')
+		pid = os.getpid()
+		os.kill(pid, signal.SIGTERM)	
 
 	def collaborate(self, id):
 		pass
@@ -117,17 +126,22 @@ class Log:
 	def resource(self, param):
 		pass
 
-	def action(self, msg):
-		code, payload = msg[:2], msg[2:-3] # the two frist 
-		if code == b'00':
-			return self.run()
-		elif code == b'01':
-			return self.pause()
-		elif code == b'02':
+	def action(self, msg, conn):
+		'''
+		Dependendo do tipo de mensagem recebida uma diferente acao e tomada.
+		Atualmente,  este metodo  impossibilita  qualquer  tipo de comunicao 
+		enquanto estiver ativo, pois ele bloqueia o processo. 
+		'''
+		code, payload = msg[:1], msg[1:-3]
+		if code == b'\x00':
+			return b'\x00' + b'running' + Log.EOF
+		elif code == b'\x01':
+			return self.pause(conn)
+		elif code == b'\x02':
 			return self.stop()		
-		elif code == b'03': 
+		elif code == b'\x03': 
 			return self.collaborate(payload)
-		elif code == b'04':
+		elif code == b'\x04':
 			return self.resource(payload)
 		
 if __name__ == '__main__':

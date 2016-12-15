@@ -43,58 +43,63 @@ import subprocess
 import branch
 
 class Blinker:
-	'''
-	[code|feedback_type|EOF]
-	feedback_types:
-		-ok|received
-		-bad|received but an error occurs
-		-not sure|send again
-	'''
+	EOF = b'\n\r\t'
+
 	def __init__(self, options, args):
 		self.options = options
 		self.args = args
 
 	def run(self):
-		'''
-		Sao tres situacoes:
-			caso 1: avisa o usuario que o pine esta ligado
-			caso 2: comeca a rodar novamente (pede pro usuario confirmar a acao)
-			caso 3: comeca a rodar		
-		Algoritmo:
-			Testa se o serviço esta online
-				Se sim verifica se ele esta rodando ou esta pausado
-					Se ele esta rodando entao avisa o usuario
-					Se estiver pausado pergunta pro usuario se ele quer despausar
-				Se não intancia um processo do Log e encerra esse programa
-		'''
 		try:
 			lbranch = branch.Branch(65499)
 		except ConnectionRefusedError:
-			subprocess.Popen(['python3', 'log.py']) # caminho para o Log, neste teste eh apenas python3 Log.py
-			print('Feedback: pine is running. To confirm that use pine --config to check the state.')
+			subprocess.Popen(['python3', 'log.py'])
+			print('Feedback: pine is running. To confirm use pine --config to check the state.')
 			return
-		lbranch.send(b'00' + b'\n\r\t')
+		lbranch.send(b'\x00' + Blinker.EOF)
 		resp = lbranch.recv()
-		code, payload = resp[:2], resp[2:-3]
-		if code == b'00':
+		code, payload = resp[:1], resp[1:-3]
+		if code == b'\x00':
 			if payload == b'running':
 				print('Feedback: pine is already running. No action was taken.')
 			elif payload == b'paused':
-				action = ''
-				while action not in ('Y', 'y', 'n', 'N'):
-					action = input('Warning: pine was paused. You want to rerun it? [Y/n]')
-				if action == 'Y' or action == 'y':
-					print('blinker.py:DEV: self.rerun()')
+				# action = ''
+				# while action not in ('Y', 'y', 'n', 'N'):
+					# action = input('Warning: pine was paused. You want to rerun it? [Y/n] ')
+				# if action == 'Y' or action == 'y':
+					# print('blinker.py:DEV: self.rerun()')
+				print('Feedback: pine is running again.')
 			else:
 				print('Error: Communication failed. Please try again later.')
 		else: 
-			print('Error: Something uncommon. Please try again later.')
+			print('Error: Something uncommon happened. Please try again later.')
 
 	def pause(self):
-		pass
+		try:
+			lbranch = branch.Branch(65499)
+		except ConnectionRefusedError:
+			print('Feedback: Was not possible to pause pine. Pine is not running. ')
+			return 
+		lbranch.send(b'\x01' + Blinker.EOF)
+		resp = lbranch.recv()
+		code, payload = resp[:1], resp[1:-3]
+		if code == b'\x01':
+			if payload == b'pause':
+				print('Feedback: pine was paused. To confirm use pine --config to check the state.')
+			elif payload == b'paused':
+				print('Feedback: pine is already paused. No action was taken')
+			else:
+				print('Error: Communication failed. Please try again later.')
+		else:
+			print('Error: Something uncommon happaned. Please try again later.')
 
-	def stop(self):
-		pass
+	def stop(self): 
+		try:
+			lbranch = branch.Branch(65499)
+		except ConnectionRefusedError:
+			print('Feedback: pine is not running or paused. No action was taken.')
+			return
+		lbranch.send(b'\x02' + Blinker.EOF)
 
 	def collaborate(self, id):
 		pass
