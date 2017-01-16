@@ -61,10 +61,12 @@ class Log:
 		self.sock.listen(5)
 		self.epoll = select.epoll()
 		self.epoll.register(self.sock.fileno(), select.EPOLLIN)
+		self.conns = {}
+		self.req = {}
+		self.resp = {}
 		
 	def run(self):
 		try:
-			conns, req, resp = {}, {}, {}
 			while 1:
 				events = self.epoll.poll(1)
 				for fileno, event in events:
@@ -72,24 +74,25 @@ class Log:
 						conn, addr = self.sock.accept()
 						conn.setblocking(0)
 						self.epoll.register(conn.fileno(), select.EPOLLIN)
-						conns[conn.fileno()] = conn
-						req[conn.fileno()] = b''
+						self.conns[conn.fileno()] = conn
+						self.req[conn.fileno()] = b''
 					elif event & select.EPOLLIN:
-						req[fileno] += conns[fileno].recv(1024)
-						if Log.EOF in req[fileno]:						
-							resp[fileno] = self.action(req[fileno][:-3], conns[fileno])
-							if resp[fileno] != b'':
+						self.req[fileno] += self.conns[fileno].recv(1024)
+						if Log.EOF in self.req[fileno]:						
+							self.resp[fileno] = self.action(self.req[fileno][:-3], self.conns[fileno])
+							#if self.resp[fileno] != b'':
+							if self.resp[fileno] != None:
 								self.epoll.modify(fileno, select.EPOLLOUT)
 					elif event & select.EPOLLOUT:
-						bw = conns[fileno].send(resp[fileno])
-						resp[fileno] = resp[fileno][bw:]
-						if len(resp[fileno]) == 0:
+						bw = self.conns[fileno].send(self.resp[fileno])
+						self.resp[fileno] = self.resp[fileno][bw:]
+						if len(self.resp[fileno]) == 0:
 							self.epoll.modify(fileno, 0)
-							conns[fileno].shutdown(socket.SHUT_RDWR)
+							self.conns[fileno].shutdown(socket.SHUT_RDWR)
 					elif event & select.EPOLLHUP:
 						self.epoll.unregister(fileno)
-						conns[fileno].close()
-						del conns[fileno]
+						self.conns[fileno].close()
+						del self.conns[fileno]
 		finally:
 			self.epoll.unregister(self.sock.fileno())
 			self.epoll.close()
@@ -115,12 +118,23 @@ class Log:
 			elif code == b'\x02':
 				self.stop()
 
-	def stop(self): # temporary solution TODO(ver as consequencias dessa solucao)
+	def stop(self): # temporary solution TODO (ver as consequencias dessa solucao)
 		print('Feedback: pine was stopped')
 		pid = os.getpid()
 		os.kill(pid, signal.SIGTERM)	
 
-	def collaborate(self, id):
+	def collaborate(self, address, no): # TODO: Testar
+		print('debug collaborate') # Execucao infinita
+		def descollaborate(self):
+		sock = socket.socket()
+		sock = setblocking(0)
+		sock.connect()
+		self.resp[sock.fileno()] = b'\x04' + Log.EOF 
+
+	def thanks(self): #send_result
+		pass
+
+	def leader(self): #instructions		
 		pass
 
 	def resource(self, param):
@@ -132,7 +146,9 @@ class Log:
 		Atualmente,  este metodo  impossibilita  qualquer  tipo de comunicao 
 		enquanto estiver ativo, pois ele bloqueia o processo. 
 		'''
-		code, payload = msg[:1], msg[1:-3]
+		print('a', msg)
+		code, payload = msg[:1], msg[1:]
+
 		if code == b'\x00':
 			return b'\x00' + b'running' + Log.EOF
 		elif code == b'\x01':
@@ -140,10 +156,56 @@ class Log:
 		elif code == b'\x02':
 			return self.stop()		
 		elif code == b'\x03': 
-			return self.collaborate(payload)
+			print(payload)
+			address, no = payload.split()
+			return self.collaborate(address, no)
 		elif code == b'\x04':
+			return self.descollaborate()
+		elif code == b'\x05':
 			return self.resource(payload)
 		
 if __name__ == '__main__':
 	pine_log = Log()
 	pine_log.run()
+
+"""
+	1 byte | payload | EOF
+	
+	pine -> santa
+
+		collaborate: \x04 | id | EOF (O servidor verifica se o id eh valido, caso sim incluia na lista de colaboradores 
+		                              do processo. Caso o pine esteja rodando o broker comeca a enviar as instrucoes).
+		descollaborate: \x05 | null | EOF (Caso o processo exista e esteja collaborando, exclui da lista).
+		
+		resultado: \x06 | resultado | EOF (A partir do address do colaborador o santa ja sabe com quem ele esta colaborando).
+
+		pine-stop: \x07 | parou/pausou | EOF (Dependendo da configuracao do broker, caso ele pause ele pode manter  
+		                                     descartar o que estava sendo processado e reenviar a instrucao ou esperar 
+		                                     por um tempo limite o pine que parou terminar de processar).
+		pine-start: \x08 | null | EOF
+
+		instruction: \x09 | null | EOF (solicita uma instrucao)
+
+	sleigh -> pine
+
+		send-instruction: \x42 | payload | EOF
+
+		ping: \x43 | null | EOF (verifica o estado do pine)
+
+	config-broker:
+		wait: true(tempo limite)/false
+		wait2: tempo maximo para o pine processar uma instrucao
+
+
+256
+
+pine 0-41
+sleigh 42-83
+santa 84-125
+north-pole 126-167
+south-pole 168-209
+cupid 209-255
+		
+
+	no is the new id  
+"""

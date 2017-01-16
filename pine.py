@@ -46,6 +46,9 @@ import blinker
 def command():
 	'''
 	Show the available commands and parse them
+
+	TODO: colocar descollaborate
+		  avisar que tem que passar o address do server quando collaborate
 	'''
 	usage = 'Cupid\nVersion 0.0.0\nBy The Cupid Team: https://github.com/plug-and-share/\nUsing python >=3'
 	parser = optparse.OptionParser(usage)
@@ -55,8 +58,10 @@ def command():
 			help='Pause running pine')
 	parser.add_option('-s', '--stop', action='store_true', 
 			help='Shutdown pine')
-	parser.add_option('-c', '--collaborate', action='store_true', 
+	parser.add_option('-c', '--collaborate', type='string',action='store', # TODO: Mudar o type do collaborate e do descollaborate pra string 
 			help='Allocate the machine resource to some application')
+	parser.add_option('-d', '--descollaborate', action='store_true', 
+			help='Desallocate the machine resource to some application')
 	parser.add_option('-R', '--resource', action='store_true', 
 			help='Manage the resource usage of the machine')
 	parser.add_option('-C', '--config', action='store_true',
