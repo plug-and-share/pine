@@ -58,7 +58,7 @@ def command():
 			help='Pause running pine')
 	parser.add_option('-s', '--stop', action='store_true', 
 			help='Shutdown pine')
-	parser.add_option('-c', '--collaborate', type='string',action='store', # TODO: Mudar o type do collaborate e do descollaborate pra string 
+	parser.add_option('-c', '--collaborate', type='string',action='store',
 			help='Allocate the machine resource to some application')
 	parser.add_option('-d', '--descollaborate', action='store_true', 
 			help='Desallocate the machine resource to some application')

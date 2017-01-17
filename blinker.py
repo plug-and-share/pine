@@ -73,6 +73,7 @@ class Blinker:
 				print('Error: Communication failed. Please try again later.')
 		else: 
 			print('Error: Something uncommon happened. Please try again later.')
+		lbranch.close()
 
 	def pause(self):
 		try:
@@ -92,6 +93,7 @@ class Blinker:
 				print('Error: Communication failed. Please try again later.')
 		else:
 			print('Error: Something uncommon happaned. Please try again later.')
+		lbranch.close()
 
 	def stop(self): 
 		try:
@@ -100,17 +102,17 @@ class Blinker:
 			print('Feedback: pine is not running or paused. No action was taken.')
 			return
 		lbranch.send(b'\x02' + Blinker.EOF)
+		lbranch.close()
 
 	def collaborate(self, payload):
-		print('Debug collaborate')
 		try:
 			lbranch = branch.Branch(65499)
 		except ConnectionRefusedError:
 			print('Feedback: pine is not running. No action was taken.') #TODO: Por enquanto nao eh possivel colaborar se o pine nao estiver rodando 
 			return
-		print(b'\x03' + payload.encode() + Blinker.EOF)
 		lbranch.send(b'\x03' + payload.encode() + Blinker.EOF)
-		#resp = lbranch.recv() 
+		lbranch.close()
+		print('Blinker.collaborate.end')
 
 
 	def descollaborate(self):
@@ -120,6 +122,7 @@ class Blinker:
 			print('Feedback: You don\'t make part of none collaboration. No action was taken.') #TODO: Por enquanto nao eh possivel descolaborar se o pine nao estiver rodando 
 			return
 		lbranch.send(b'\x04' + Blinker.EOF)
+		lbranch.close()
 
 	def resource(self, param):
 		pass
@@ -143,7 +146,6 @@ class Blinker:
 		elif self.options.stop:
 			self.stop()
 		elif self.options.collaborate:
-			print(self.options.collaborate)
 			self.collaborate(self.options.collaborate)
 		elif self.options.descollaborate:
 			self.descollaborate()

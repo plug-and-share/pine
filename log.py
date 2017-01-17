@@ -55,6 +55,7 @@ class Log:
 	EOF = b'\n\r\t'
 	
 	def __init__(self):
+		print('Log.__init__')
 		self.sock = socket.socket()
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.sock.bind(('localhost', 65500))
@@ -64,27 +65,35 @@ class Log:
 		self.conns = {}
 		self.req = {}
 		self.resp = {}
+		self.c_address = None
 		
 	def run(self):
+		print('Log.run')
 		try:
 			while 1:
 				events = self.epoll.poll(1)
 				for fileno, event in events:
 					if fileno == self.sock.fileno():
 						conn, addr = self.sock.accept()
+						print('DEBUG: Log.run', addr)
 						conn.setblocking(0)
 						self.epoll.register(conn.fileno(), select.EPOLLIN)
 						self.conns[conn.fileno()] = conn
 						self.req[conn.fileno()] = b''
 					elif event & select.EPOLLIN:
 						self.req[fileno] += self.conns[fileno].recv(1024)
-						if Log.EOF in self.req[fileno]:						
+						if Log.EOF in self.req[fileno]:
+							print('DEBUG: Log.run.EPOLLIN', self.req[fileno][:-3])			
 							self.resp[fileno] = self.action(self.req[fileno][:-3], self.conns[fileno])
-							#if self.resp[fileno] != b'':
 							if self.resp[fileno] != None:
 								self.epoll.modify(fileno, select.EPOLLOUT)
+							else:
+								self.epoll.unregister(fileno)
+								self.conns[fileno].close()
+								del self.conns[fileno]					
 					elif event & select.EPOLLOUT:
 						bw = self.conns[fileno].send(self.resp[fileno])
+						print('DEBUG: Log.run.EPOLLOUT', bw)
 						self.resp[fileno] = self.resp[fileno][bw:]
 						if len(self.resp[fileno]) == 0:
 							self.epoll.modify(fileno, 0)
@@ -98,8 +107,8 @@ class Log:
 			self.epoll.close()
 			self.sock.close()
 
-	def pause(self, conn):
-		# self.pause_vm()
+	def pause(self, conn): # Nao esta funcionando corretamente
+		print('Log.pause')
 		conn.sendall(b'\x01' + b'pause' + Log.EOF)
 		conn.close()
 		while 1:
@@ -111,30 +120,40 @@ class Log:
 			if code == b'\x00':
 				conn.sendall(b'\x00' +  b'paused' + Log.EOF)
 				conn.close()
-				return b''
 			elif code == b'\x01':
 				conn.sendall(b'\x01' + b'paused' + Log.EOF)
 				conn.close()
 			elif code == b'\x02':
 				self.stop()
 
-	def stop(self): # temporary solution TODO (ver as consequencias dessa solucao)
+	def stop(self):
+		print('Log.stop')
 		print('Feedback: pine was stopped')
-		pid = os.getpid()
-		os.kill(pid, signal.SIGTERM)	
+		os.kill(os.getpid(), signal.SIGTERM)	
 
-	def collaborate(self, address, no): # TODO: Testar
-		print('debug collaborate') # Execucao infinita
-		def descollaborate(self):
+	def collaborate(self, ip, port):
+		print('Log.collaborate')
 		sock = socket.socket()
-		sock = setblocking(0)
-		sock.connect()
-		self.resp[sock.fileno()] = b'\x04' + Log.EOF 
+		sock.connect((ip, int(port)))
+		sock.send(b'\x03' + Log.EOF) # funciona, mas bloquia
+		self.c_address = (ip, port) # tem que verificar antes se realmente ele esta colaborando
+		#sock.setblocking(0)
+		#print('Log.collaborate.end')
+		#return b'\x03' + Log.EOF
+
+	def descollaborate(self):
+		print('Log.descollaborate')
+		sock = socket.socket()
+		sock.connect(self.c_address)
+		sock.send(b'\x04' + Log.EOF)
+
+	def letter(self, ip, port): #instructions		
+		print('Log.letter')
+		sock = socket.socket()
+		sock.connect(self.c_address)
+		sock.send(b'\x05' + Log.EOF)		
 
 	def thanks(self): #send_result
-		pass
-
-	def leader(self): #instructions		
 		pass
 
 	def resource(self, param):
@@ -146,9 +165,8 @@ class Log:
 		Atualmente,  este metodo  impossibilita  qualquer  tipo de comunicao 
 		enquanto estiver ativo, pois ele bloqueia o processo. 
 		'''
-		print('a', msg)
+		print('Log.action')
 		code, payload = msg[:1], msg[1:]
-
 		if code == b'\x00':
 			return b'\x00' + b'running' + Log.EOF
 		elif code == b'\x01':
@@ -156,35 +174,37 @@ class Log:
 		elif code == b'\x02':
 			return self.stop()		
 		elif code == b'\x03': 
-			print(payload)
-			address, no = payload.split()
-			return self.collaborate(address, no)
+			ip, port = payload.split()
+			return self.collaborate(ip, int(port))
 		elif code == b'\x04':
 			return self.descollaborate()
 		elif code == b'\x05':
+			return self.letter()
+		elif code == b'\x06':
 			return self.resource(payload)
 		
 if __name__ == '__main__':
 	pine_log = Log()
 	pine_log.run()
-
-"""
+'''
 	1 byte | payload | EOF
 	
-	pine -> santa
+	pine -> sleigh
 
-		collaborate: \x04 | id | EOF (O servidor verifica se o id eh valido, caso sim incluia na lista de colaboradores 
+		collaborate: \x03 | id | EOF (O servidor verifica se o id eh valido, caso sim incluia na lista de colaboradores 
 		                              do processo. Caso o pine esteja rodando o broker comeca a enviar as instrucoes).
-		descollaborate: \x05 | null | EOF (Caso o processo exista e esteja collaborando, exclui da lista).
+
+		descollaborate: \x04 | null | EOF (Caso o processo exista e esteja collaborando, exclui da lista).
 		
+		instruction: \x05 | null | EOF (solicita uma instrucao)
+
 		resultado: \x06 | resultado | EOF (A partir do address do colaborador o santa ja sabe com quem ele esta colaborando).
 
 		pine-stop: \x07 | parou/pausou | EOF (Dependendo da configuracao do broker, caso ele pause ele pode manter  
 		                                     descartar o que estava sendo processado e reenviar a instrucao ou esperar 
 		                                     por um tempo limite o pine que parou terminar de processar).
 		pine-start: \x08 | null | EOF
-
-		instruction: \x09 | null | EOF (solicita uma instrucao)
+		
 
 	sleigh -> pine
 
@@ -205,7 +225,4 @@ santa 84-125
 north-pole 126-167
 south-pole 168-209
 cupid 209-255
-		
-
-	no is the new id  
-"""
+'''

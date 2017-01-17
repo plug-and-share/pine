@@ -49,8 +49,8 @@ class Branch:
 	def __init__(self, service_port):
 		self.sock = socket.socket()
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.sock.bind(('0.0.0.0', service_port))
-		self.sock.connect(('0.0.0.0', 65500))
+		self.sock.bind(('localhost', service_port))
+		self.sock.connect(('localhost', 65500))
 		
 	def send(self, msg):
 		self.sock.sendall(msg)
@@ -60,3 +60,6 @@ class Branch:
 		while Branch.EOF not in msg:
 			msg += self.sock.recv(1024)
 		return msg
+
+	def close(self):
+		self.sock.close()
