@@ -38,11 +38,13 @@ DATE           12/12/2016
 AUTHORS        CANABARRO,DIAS,TASHIRO
 PYTHON_VERSION v3
 '''
+import json
 import subprocess
 
-import branch
+from branch import Branch
 
 class Blinker:
+
 	EOF = b'\n\r\t'
 
 	def __init__(self, options, args):
@@ -51,13 +53,13 @@ class Blinker:
 
 	def run(self):
 		try:
-			lbranch = branch.Branch(65499)
+			branch = Branch(65499, ('localhost', 65500))
 		except ConnectionRefusedError:
 			subprocess.Popen(['python3', 'log.py'])
 			print('Feedback: pine is running. To confirm use pine --config to check the state.')
 			return
-		lbranch.send(b'\x00' + Blinker.EOF)
-		resp = lbranch.recv()
+		branch.send(b'\x00' + Blinker.EOF)
+		resp = branch.recv()
 		code, payload = resp[:1], resp[1:-3]
 		if code == b'\x00':
 			if payload == b'running':
@@ -73,16 +75,16 @@ class Blinker:
 				print('Error: Communication failed. Please try again later.')
 		else: 
 			print('Error: Something uncommon happened. Please try again later.')
-		lbranch.close()
+		branch.close()
 
 	def pause(self):
 		try:
-			lbranch = branch.Branch(65499)
+			branch = Branch(65499, ('localhost', 65500))
 		except ConnectionRefusedError:
 			print('Feedback: Was not possible to pause pine. Pine is not running. ')
 			return 
-		lbranch.send(b'\x01' + Blinker.EOF)
-		resp = lbranch.recv()
+		branch.send(b'\x01' + Blinker.EOF)
+		resp = branch.recv()
 		code, payload = resp[:1], resp[1:-3]
 		if code == b'\x01':
 			if payload == b'pause':
@@ -93,50 +95,67 @@ class Blinker:
 				print('Error: Communication failed. Please try again later.')
 		else:
 			print('Error: Something uncommon happaned. Please try again later.')
-		lbranch.close()
+		branch.close()
 
 	def stop(self): 
 		try:
-			lbranch = branch.Branch(65499)
+			branch = Branch(65499, ('localhost', 65500))
 		except ConnectionRefusedError:
 			print('Feedback: pine is not running or paused. No action was taken.')
 			return
-		lbranch.send(b'\x02' + Blinker.EOF)
-		lbranch.close()
+		branch.send(b'\x02' + Blinker.EOF)
+		branch.close()
 
-	def collaborate(self, payload):
+	def collaborate(self, address):
+		print('Blinker.collaborate')
 		try:
-			lbranch = branch.Branch(65499)
+			branch = Branch(65499, address)
 		except ConnectionRefusedError:
-			print('Feedback: pine is not running. No action was taken.') #TODO: Por enquanto nao eh possivel colaborar se o pine nao estiver rodando 
-			return
-		lbranch.send(b'\x03' + payload.encode() + Blinker.EOF)
-		lbranch.close()
-		print('Blinker.collaborate.end')
-
+			print('Error: The address is invalid. Please try again.')
+			return 
+		branch.send(b'\x03' + Blinker.EOF)
+		resp = branch.recv()
+		code, payload = resp[:1], resp[1:-3]
+		if code == '\x42':
+			method_name, vm_img = payload.split()
+			# escreve no config.json...
+		branch.close()
 
 	def descollaborate(self):
+		print('Blinker.descollaborate')
 		try:
-			lbranch = branch.Branch(65499)
+			with open('config.json') as config_file:
+				config = json.load(config_file)
+			if config['process']['sleigh_address'] != None:
+				branch = Branch(65499, config['process']['sleigh_address'])
+			else:
+				print('Feedback: You are collaborating with anyone. No action was taken.')
+				return
 		except ConnectionRefusedError:
-			print('Feedback: You don\'t make part of none collaboration. No action was taken.') #TODO: Por enquanto nao eh possivel descolaborar se o pine nao estiver rodando 
-			return
-		lbranch.send(b'\x04' + Blinker.EOF)
-		lbranch.close()
+			print('Error: Was not possible to communicate with sleigh. Please check if it is still running.')
+			return 
+		branch.send(b'\x03' + Blinker.EOF)
+		resp = branch.recv()
+		code, payload = resp[:1], resp[1:-3]
+		# ...
+		branch.close()
 
 	def resource(self, param):
 		pass
 
-	def config(self): # fazer metodo para obter os dados
-		print('\npine configuration:')
-		print('	state        ', '{running, paused, stopped}')
-		print('	vm_vcpu      ', '1..*')
-		print('	vm_cpu_set   ', 'i.e. x86')
-		print('	vm_cpu_usage ', '0-100%')
-		print('	vm_ram_usage ', '0..host_ram')
-		if True: # esta realizando uma exploracao TODO
-			print('	progress     ', 'X/100%')
-		print()
+	def config(self): 
+		with open('config.json') as config_file:
+			config = json.load(config_file)	
+			print('--------------------------------')
+			print('config:')
+			print('	state        ', config['state'])
+			print('	vm_vcpu      ', config['vm']['vcpu'])
+			print('	vm_cpu_set   ', config['vm']['cpu_set'])
+			print('	vm_cpu_usage ', config['vm']['cpu_usage'])
+			print('	vm_ram_usage ', config['vm']['ram_usage'])
+			if config['process']['progress']:
+				print('	progress     ', config['process']['progress'])
+			print('--------------------------------')
 
 	def blink(self):
 		if self.options.run:

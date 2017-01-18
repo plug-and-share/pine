@@ -38,7 +38,6 @@ DATE            12/01/2016
 AUTHORS         Canabarro, Dias, Tashiro
 PYTHON_VERSION: v3
 '''
-#!/usr/bin/python3
 import optparse
 
 import blinker				
@@ -46,9 +45,6 @@ import blinker
 def command():
 	'''
 	Show the available commands and parse them
-
-	TODO: colocar descollaborate
-		  avisar que tem que passar o address do server quando collaborate
 	'''
 	usage = 'Cupid\nVersion 0.0.0\nBy The Cupid Team: https://github.com/plug-and-share/\nUsing python >=3'
 	parser = optparse.OptionParser(usage)
@@ -74,3 +70,44 @@ if __name__ == '__main__':
 	opt, args = command()
 	control = blinker.Blinker(opt, args)
 	control.blink()
+
+'''
+	1 byte | payload | EOF
+	
+	pine -> sleigh
+
+		collaborate: \x03 | id | EOF (O servidor verifica se o id eh valido, caso sim incluia na lista de colaboradores 
+		                              do processo. Caso o pine esteja rodando o broker comeca a enviar as instrucoes).
+
+		descollaborate: \x04 | null | EOF (Caso o processo exista e esteja collaborando, exclui da lista).
+		
+		instruction: \x05 | null | EOF (solicita uma instrucao)
+
+		resultado: \x06 | resultado | EOF (A partir do address do colaborador o santa ja sabe com quem ele esta colaborando).
+
+		pine-stop: \x07 | parou/pausou | EOF (Dependendo da configuracao do broker, caso ele pause ele pode manter  
+		                                     descartar o que estava sendo processado e reenviar a instrucao ou esperar 
+		                                     por um tempo limite o pine que parou terminar de processar).
+		pine-start: \x08 | null | EOF
+		
+
+	sleigh -> pine
+
+		send-instruction: \x42 | payload | EOF
+
+		ping: \x43 | null | EOF (verifica o estado do pine)
+
+	config-broker:
+		wait: true(tempo limite)/false
+		wait2: tempo maximo para o pine processar uma instrucao
+
+
+256
+
+pine 0-41
+sleigh 42-83
+santa 84-125
+north-pole 126-167
+south-pole 168-209
+cupid 209-255
+'''

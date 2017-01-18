@@ -1,0 +1,15 @@
+{
+	"processare": {
+		"sleigh_address": null,
+		"method_used": null,
+		"vm_img": null,
+		"progress": null
+	},
+	"state": "stopped",
+	"vm": {
+		"vcpu": null,
+		"cpu_set": null,
+		"cpu_usage": null,
+		"ram_usage": null
+	}
+}

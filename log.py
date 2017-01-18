@@ -38,10 +38,10 @@ DATE           12/08/2016
 AUTHORS        TASHIRO
 PYTHON_VERSION v3
 '''
+import os 
 import select
+import signal
 import socket
-import os # Log.stop() temporary solution
-import signal # Log.stop() temporary solution
 
 class Log:
 	'''
@@ -131,32 +131,14 @@ class Log:
 		print('Feedback: pine was stopped')
 		os.kill(os.getpid(), signal.SIGTERM)	
 
-	def collaborate(self, ip, port):
-		print('Log.collaborate')
-		sock = socket.socket()
-		sock.connect((ip, int(port)))
-		sock.send(b'\x03' + Log.EOF) # funciona, mas bloquia
-		self.c_address = (ip, port) # tem que verificar antes se realmente ele esta colaborando
-		#sock.setblocking(0)
-		#print('Log.collaborate.end')
-		#return b'\x03' + Log.EOF
-
-	def descollaborate(self):
-		print('Log.descollaborate')
-		sock = socket.socket()
-		sock.connect(self.c_address)
-		sock.send(b'\x04' + Log.EOF)
-
 	def letter(self, ip, port): #instructions		
 		print('Log.letter')
 		sock = socket.socket()
 		sock.connect(self.c_address)
-		sock.send(b'\x05' + Log.EOF)		
+		sock.send(b'\x05' + Log.EOF)
+		# jogar a conexao para o self.req para receber as instrucoes
 
 	def thanks(self): #send_result
-		pass
-
-	def resource(self, param):
 		pass
 
 	def action(self, msg, conn):
@@ -172,57 +154,11 @@ class Log:
 		elif code == b'\x01':
 			return self.pause(conn)
 		elif code == b'\x02':
-			return self.stop()		
-		elif code == b'\x03': 
-			ip, port = payload.split()
-			return self.collaborate(ip, int(port))
-		elif code == b'\x04':
-			return self.descollaborate()
-		elif code == b'\x05':
-			return self.letter()
-		elif code == b'\x06':
-			return self.resource(payload)
+			return self.stop()
+		elif code == b'\x43': # TODO
+			pass
+			#return self.process()
 		
 if __name__ == '__main__':
 	pine_log = Log()
 	pine_log.run()
-'''
-	1 byte | payload | EOF
-	
-	pine -> sleigh
-
-		collaborate: \x03 | id | EOF (O servidor verifica se o id eh valido, caso sim incluia na lista de colaboradores 
-		                              do processo. Caso o pine esteja rodando o broker comeca a enviar as instrucoes).
-
-		descollaborate: \x04 | null | EOF (Caso o processo exista e esteja collaborando, exclui da lista).
-		
-		instruction: \x05 | null | EOF (solicita uma instrucao)
-
-		resultado: \x06 | resultado | EOF (A partir do address do colaborador o santa ja sabe com quem ele esta colaborando).
-
-		pine-stop: \x07 | parou/pausou | EOF (Dependendo da configuracao do broker, caso ele pause ele pode manter  
-		                                     descartar o que estava sendo processado e reenviar a instrucao ou esperar 
-		                                     por um tempo limite o pine que parou terminar de processar).
-		pine-start: \x08 | null | EOF
-		
-
-	sleigh -> pine
-
-		send-instruction: \x42 | payload | EOF
-
-		ping: \x43 | null | EOF (verifica o estado do pine)
-
-	config-broker:
-		wait: true(tempo limite)/false
-		wait2: tempo maximo para o pine processar uma instrucao
-
-
-256
-
-pine 0-41
-sleigh 42-83
-santa 84-125
-north-pole 126-167
-south-pole 168-209
-cupid 209-255
-'''
