@@ -44,10 +44,12 @@ class Branch:
 	'''
 	Realiza a comunicação entre o Log e um serviço
 	'''
+	EOF = b'\n\r\t'
+
 	def __init__(self, service_port, dest_address):
 		self.sock = socket.socket()
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.sock.bind(('localhost', service_port, dest_address))
+		self.sock.bind(('localhost', service_port))
 		self.sock.connect(dest_address)
 		
 	def send(self, msg):

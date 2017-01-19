@@ -56,6 +56,7 @@ class Blinker:
 			branch = Branch(65499, ('localhost', 65500))
 		except ConnectionRefusedError:
 			subprocess.Popen(['python3', 'log.py'])
+			self._update_config({'state': 'running'}) # mudar isso de lugar
 			print('Feedback: pine is running. To confirm use pine --config to check the state.')
 			return
 		branch.send(b'\x00' + Blinker.EOF)
@@ -70,8 +71,9 @@ class Blinker:
 					# action = input('Warning: pine was paused. You want to rerun it? [Y/n] ')
 				# if action == 'Y' or action == 'y':
 					# print('blinker.py:DEV: self.rerun()')
+				self._update_config({'state': 'running'}) # mudar isso de lugar
 				print('Feedback: pine is running again.')
-			else:
+			else:				
 				print('Error: Communication failed. Please try again later.')
 		else: 
 			print('Error: Something uncommon happened. Please try again later.')
@@ -88,6 +90,7 @@ class Blinker:
 		code, payload = resp[:1], resp[1:-3]
 		if code == b'\x01':
 			if payload == b'pause':
+				self._update_config({'state': 'paused'}) # mudar isso de lugar
 				print('Feedback: pine was paused. To confirm use pine --config to check the state.')
 			elif payload == b'paused':
 				print('Feedback: pine is already paused. No action was taken')
@@ -103,8 +106,23 @@ class Blinker:
 		except ConnectionRefusedError:
 			print('Feedback: pine is not running or paused. No action was taken.')
 			return
-		branch.send(b'\x02' + Blinker.EOF)
+		branch.send(b'\x02' + Blinker.EOF)		
 		branch.close()
+		self._update_config({'state': 'stopped'}) # mudar isso de lugar
+
+	def _update_config(self, new_config):
+		with open('config.json') as config_file:
+			config = json.load(config_file)
+		config.update(new_config)
+		with open('config.json', 'w') as config_file:
+			json.dump(config, config_file, indent=4)
+
+	def _get_config_info(self, key):
+		with open('config.json') as config_file:
+			config = json.load(config_file)
+		for k in key:
+			config = config[k]
+		return config
 
 	def collaborate(self, address):
 		print('Blinker.collaborate')
@@ -112,13 +130,20 @@ class Blinker:
 			branch = Branch(65499, address)
 		except ConnectionRefusedError:
 			print('Error: The address is invalid. Please try again.')
-			return 
-		branch.send(b'\x03' + Blinker.EOF)
+			return
+		branch.send(b'\x03' + self._get_config_info(['state']).encode() + Blinker.EOF)
 		resp = branch.recv()
 		code, payload = resp[:1], resp[1:-3]
-		if code == '\x42':
+		if code == b'\x42':
 			method_name, vm_img = payload.split()
-			# escreve no config.json...
+			self._update_config({
+				'process': {
+					'method_used': method_name.decode(), 
+					'vm_img': vm_img.decode(), 
+					'sleigh_address': address,
+					'progress': None
+				}
+			})
 		branch.close()
 
 	def descollaborate(self):
@@ -127,17 +152,23 @@ class Blinker:
 			with open('config.json') as config_file:
 				config = json.load(config_file)
 			if config['process']['sleigh_address'] != None:
-				branch = Branch(65499, config['process']['sleigh_address'])
+				branch = Branch(65499, tuple(config['process']['sleigh_address']))
 			else:
 				print('Feedback: You are collaborating with anyone. No action was taken.')
 				return
 		except ConnectionRefusedError:
 			print('Error: Was not possible to communicate with sleigh. Please check if it is still running.')
 			return 
-		branch.send(b'\x03' + Blinker.EOF)
+		branch.send(b'\x04' + Blinker.EOF)
 		resp = branch.recv()
 		code, payload = resp[:1], resp[1:-3]
-		# ...
+		self._update_config({
+			'process': {
+				'method_used': None, 
+				'vm_img': None, 
+				'sleigh_address': None
+			}
+		})
 		branch.close()
 
 	def resource(self, param):
@@ -148,11 +179,11 @@ class Blinker:
 			config = json.load(config_file)	
 			print('--------------------------------')
 			print('config:')
-			print('	state        ', config['state'])
-			print('	vm_vcpu      ', config['vm']['vcpu'])
-			print('	vm_cpu_set   ', config['vm']['cpu_set'])
-			print('	vm_cpu_usage ', config['vm']['cpu_usage'])
-			print('	vm_ram_usage ', config['vm']['ram_usage'])
+			print('	state:       ', config['state'])
+			print('	vm_vcpu:     ', config['vm']['vcpu'])
+			print('	vm_cpu_set:  ', config['vm']['cpu_set'])
+			print('	vm_cpu_usage:', config['vm']['cpu_usage'])
+			print('	vm_ram_usage:', config['vm']['ram_usage'])
 			if config['process']['progress']:
 				print('	progress     ', config['process']['progress'])
 			print('--------------------------------')
@@ -165,7 +196,8 @@ class Blinker:
 		elif self.options.stop:
 			self.stop()
 		elif self.options.collaborate:
-			self.collaborate(self.options.collaborate)
+			ip, port = self.options.collaborate.split()
+			self.collaborate((ip, int(port)))
 		elif self.options.descollaborate:
 			self.descollaborate()
 		elif self.options.resource:

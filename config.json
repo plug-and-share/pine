@@ -1,15 +1,18 @@
 {
-	"processare": {
-		"sleigh_address": null,
-		"method_used": null,
-		"vm_img": null,
-		"progress": null
-	},
-	"state": "stopped",
-	"vm": {
-		"vcpu": null,
-		"cpu_set": null,
-		"cpu_usage": null,
-		"ram_usage": null
-	}
+    "vm": {
+        "cpu_set": null,
+        "ram_usage": null,
+        "vcpu": null,
+        "cpu_usage": null
+    },
+    "state": "running",
+    "process": {
+        "progress": null,
+        "sleigh_address": [
+            "localhost",
+            50000
+        ],
+        "method_used": "schedule",
+        "vm_img": "655.626.652"
+    }
 }
