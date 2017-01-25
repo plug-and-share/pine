@@ -43,100 +43,78 @@ import subprocess
 
 from branch import Branch
 
-class Blinker:
-
-	EOF = b'\n\r\t'
-
-	def __init__(self, options, args):
-		self.options = options
-		self.args = args
-
-	def run(self):
+		'''	
+		run()
 		try:
-			branch = Branch(65499, ('localhost', 65500))
+			branch = Branch(self.port, ('localhost', 65500))
 		except ConnectionRefusedError:
 			subprocess.Popen(['python3', 'log.py'])
-			self._update_config({'state': 'running'}) # mudar isso de lugar
-			print('Feedback: pine is running. To confirm use pine --config to check the state.')
+			self.update_config({'state': 'running'}) # mudar isso de lugar
+			print('[Feedback] pine is running. To confirm use pine --config to check the state.')
 			return
 		branch.send(b'\x00' + Blinker.EOF)
 		resp = branch.recv()
 		code, payload = resp[:1], resp[1:-3]
 		if code == b'\x00':
 			if payload == b'running':
-				print('Feedback: pine is already running. No action was taken.')
+				print('[Feedback] pine is already running. No action was taken.')
 			elif payload == b'paused':
-				# action = ''
-				# while action not in ('Y', 'y', 'n', 'N'):
-					# action = input('Warning: pine was paused. You want to rerun it? [Y/n] ')
-				# if action == 'Y' or action == 'y':
-					# print('blinker.py:DEV: self.rerun()')
-				self._update_config({'state': 'running'}) # mudar isso de lugar
-				print('Feedback: pine is running again.')
+				action = ''
+				#while action not in ('Y', 'y', 'n', 'N'):
+					#action = input('Warning: pine was paused. You want to rerun it? [Y/n] ')
+				#if action == 'Y' or action == 'y':
+					#print('blinker.py:DEV: self.rerun()')
+				self.update_config({'state': 'running'}) # mudar isso de lugar
+				print('[Feedback] pine is running again.')
 			else:				
-				print('Error: Communication failed. Please try again later.')
+				print('[Error] Communication failed. Please try again later.')
 		else: 
-			print('Error: Something uncommon happened. Please try again later.')
+			print('[Error] Something uncommon happened. Please try again later.')
 		branch.close()
 
-	def pause(self):
+		pause()
 		try:
-			branch = Branch(65499, ('localhost', 65500))
+			branch = Branch(self.port, ('localhost', 65500))
 		except ConnectionRefusedError:
-			print('Feedback: Was not possible to pause pine. Pine is not running. ')
+			print('[Feedback] Was not possible to pause pine. Pine is not running. ')
 			return 
 		branch.send(b'\x01' + Blinker.EOF)
 		resp = branch.recv()
 		code, payload = resp[:1], resp[1:-3]
 		if code == b'\x01':
 			if payload == b'pause':
-				self._update_config({'state': 'paused'}) # mudar isso de lugar
-				print('Feedback: pine was paused. To confirm use pine --config to check the state.')
+				self.update_config({'state': 'paused'}) # mudar isso de lugar
+				print('[Feedback] pine was paused. To confirm use pine --config to check the state.')
 			elif payload == b'paused':
-				print('Feedback: pine is already paused. No action was taken')
+				print('[Feedback] pine is already paused. No action was taken')
 			else:
-				print('Error: Communication failed. Please try again later.')
+				print('[Error] Communication failed. Please try again later.')
 		else:
-			print('Error: Something uncommon happaned. Please try again later.')
+			print('[Error]: Something uncommon happaned. Please try again later.')
 		branch.close()
 
-	def stop(self): 
+		stop()
 		try:
-			branch = Branch(65499, ('localhost', 65500))
+			branch = Branch(self.port, ('localhost', 65500))
 		except ConnectionRefusedError:
-			print('Feedback: pine is not running or paused. No action was taken.')
+			print('[Feedback]: pine is not running or paused. No action was taken.')
 			return
 		branch.send(b'\x02' + Blinker.EOF)		
 		branch.close()
-		self._update_config({'state': 'stopped'}) # mudar isso de lugar
+		self.update_config({'state': 'stopped'}) # mudar isso de lugar
 
-	def _update_config(self, new_config):
-		with open('config.json') as config_file:
-			config = json.load(config_file)
-		config.update(new_config)
-		with open('config.json', 'w') as config_file:
-			json.dump(config, config_file, indent=4)
-
-	def _get_config_info(self, key):
-		with open('config.json') as config_file:
-			config = json.load(config_file)
-		for k in key:
-			config = config[k]
-		return config
-
-	def collaborate(self, address):
-		print('Blinker.collaborate')
+		collaborate()
 		try:
-			branch = Branch(65499, address)
+			branch = Branch(self.port, address)
 		except ConnectionRefusedError:
-			print('Error: The address is invalid. Please try again.')
+			print(']Error The address is invalid. Please try again.')
 			return
-		branch.send(b'\x03' + self._get_config_info(['state']).encode() + Blinker.EOF)
+		branch.send(b'\x03' + Blinker.EOF)
 		resp = branch.recv()
 		code, payload = resp[:1], resp[1:-3]
 		if code == b'\x42':
 			method_name, vm_img = payload.split()
-			self._update_config({
+			self.update_config({
 				'process': {
 					'method_used': method_name.decode(), 
 					'vm_img': vm_img.decode(), 
@@ -146,30 +124,173 @@ class Blinker:
 			})
 		branch.close()
 
-	def descollaborate(self):
-		print('Blinker.descollaborate')
+		'''
+
+class Blinker:
+
+	EOF = b'\n\r\t'
+	port = self.65499
+
+	def __init__(self, options, args):
+		self.options = options
+		self.args = args
+
+	def update_config(self, new_config):
+		with open('config.json') as config_file:
+			config = json.load(config_file)
+		config.update(new_config)
+		with open('config.json', 'w') as config_file:
+			json.dump(config, config_file, indent=4)
+
+	def get_config_info(self, key):
+		with open('config.json') as config_file:
+			config = json.load(config_file)
+		for k in key:
+			config = config[k]
+		return config
+
+	def run(self):
+		'''
+		1° passo: Verifica o estado atual do pine.
+
+		2° passo: Dependendo do seu estado uma ação é executada. Caso esteja rodando 
+				  apenas avisa o usuário. Se estiver parado avisa o usuário e solici-
+				  ta uma confirmação para voltar a rodar. Se estiver parado inicia o 
+				  começa a rodar o pine.
+		'''
+		state = self.get_config_info(['state'])
+		if state == 'running':
+			print('[Feedback] pine is already running. You can check the state using the --config command.')
+		elif state == 'paused':
+				confirm = ''
+				while confirm not in ('Y', 'y', 'n', 'N'):
+					confirm = input('[Warning] pine was paused. You want to rerun it? [Y/n] ')
+				if confirm == 'Y' or confirm == 'y':
+					branch = Branch(self.port, ('localhost', 65500))	
+					branch.send(b'\x00' + Blinker.EOF)
+					resp = branch.recv()
+					branch.close()
+					if resp[:-3] == b'running' + Bliner.EOF:
+						self.update_config({'state': 'running'})
+						print('[Feedback] pine is rerunning again. You can check the state using the --config command')
+					else:
+						pass # TODO: Tratar possíveis erros
+		elif state == 'stopped':
+			subprocess.Popen(['python3', 'log.py'])
+			self.update_config({'state': 'running'})			
+			print('[Feedback] pine is running. You can check the state using the --config command'.)
+			return
+
+	def pause(self):
+		'''
+		1° passo: Verifica o estado atual do pine.
+
+		2° passo: Dependendo do seu estado uma ação é executada. Se estiver rodando ele
+				  solicita uma confirmação da ação e avisa sobre as consequências dela. 
+				  Caso esteja pausado ou parado, apenas avisa o usuário do seu estado.
+		'''
+		state = self.get_config_info(['state'])
+		if state == 'running':
+			confirm = ''
+			while confirm not in ('Y', 'y', 'n', 'N'):
+				confirm = input('[Warning] pine is running. All process will be paused if you confirm the action [Y/n] ')
+			if confirm == 'Y' or confirm == 'y':
+				branch = Branch(self.port, ('localhost', 65500))
+				branch.send(b'\x01' + Blinker.EOF)
+				resp = branch.recv()
+				branch.close()				
+				if resp == b'paused' + Blinker.EOF
+					self.update_config({'state': 'paused'})
+					print('[Feedback] pine was paused. You can check the state using the --config command.')
+		elif state == 'paused':
+			print('[Feedback] pine is already paused. You can check the state using --config command.')	
+		elif state == 'stopped':
+			print('[Feedback] pine is stopped. No action was performed. You can check the state using --config command.')		
+
+	def stop(self): 
+		'''
+		1° passo: Verifica o estado atual do pine.
+
+		2° passo: Dependendo do seu estado uma ação é  executada. Se estiver  rodando ou
+				  pausado pede para confirmar a ação e avisa sobre as consequências dela.
+				  Se estiver parado, apenas avisa o usuário do seu estado.
+		'''
+		state = self.get_config_info(['state'])
+		if state == 'running' or state == 'paused':
+			confirm = ''
+			while confirm not in ('Y', 'y', 'n', 'N'):
+				confirm = input('[Warning] pine is running or paused. All process will be paused if you confirm the action [Y/n]')
+			if confirm == 'Y' or confirm == 'y':
+				branch = branch(self.port, ('localhost', 65500))
+				branch.send(b'\x02' + Blinker.EOF)
+				resp = branch.recv()
+				branch.close()
+				if resp == b'stopped' + Blinker.EOF:
+					self.update_config({'state': 'stopped'})
+					print('[Feedback] pine was stopped. You can check the state using --config command.')
+		elif state == 'stopped':
+			print('[Feedback] pine is already stopped. None action was performed. You can check the state using --config command')
+
+	def collaborate(self, address):
+		'''
+		1° passo: Checa se o pine já está colaborando. Se sim avisa o usuário e pede se ele deseja
+			      parar de colaborar com a aplicação a tual.
+
+		2° passo: Estabelece envia uma mensagem para o sleigh pedindo para colaborar com aquela
+				  aplicação.
+
+		3° passo: Atualiza as configurações do pine.
+		'''
+		process = self.get_config_info(['process'])		
+		if process:
+			confirm = ''
+			while confirm not in ('Y', 'y', 'n', 'N'):
+				confirm = input('[Warning] pine is already collaborating with an application. You wish descollaborate with it and collaborate with another application.')
+			self.descollaborate()
+			self.update_config({'process': None})
 		try:
-			with open('config.json') as config_file:
-				config = json.load(config_file)
-			if config['process']['sleigh_address'] != None:
-				branch = Branch(65499, tuple(config['process']['sleigh_address']))
-			else:
-				print('Feedback: You are collaborating with anyone. No action was taken.')
-				return
+			branch = Branch(self.port, address)
 		except ConnectionRefusedError:
-			print('Error: Was not possible to communicate with sleigh. Please check if it is still running.')
-			return 
-		branch.send(b'\x04' + Blinker.EOF)
+			print('[Error] The address is invalid. Please try again.')
+			return
+		branch.send(b'\x03' + Blinker.EOF)
 		resp = branch.recv()
-		code, payload = resp[:1], resp[1:-3]
-		self._update_config({
+		branch.close()
+		payload = resp[1:-3]
+		method_name, vm_img = payload.split()
+		self.update_config({
 			'process': {
-				'method_used': None, 
-				'vm_img': None, 
-				'sleigh_address': None
+				'method_used': method_name.decode(), 
+				'vm_img': vm_img.decode(), 
+				'sleigh_address': address,
+				'progress': None
 			}
 		})
-		branch.close()
+
+	def descollaborate(self):
+		'''
+		1° passo: Verifica se o pine esta colaborando com alguem
+
+		2° passo: Avisa para o sleigh que está descolaborando com ele.
+
+		3° passo: Atualiza as configurações do pine.
+		'''
+		process = self.get_config_name(['process'])
+		if process:
+			try:
+				with open('config.json') as config_file:
+					config = json.load(config_file)
+					branch = Branch(self.port, tuple(config['process']['sleigh_address']))
+			except ConnectionRefusedError:
+				print('[Error] Was not possible to communicate with sleigh. Please check if it is still running.')
+				return 
+			branch.send(b'\x04' + Blinker.EOF)
+			resp = branch.recv()
+			branch.close()
+			code, payload = resp[:1], resp[1:-3]
+			self.update_config({'process': None})
+		else:
+			print('[Feedback] pine was not collaborating with an aplication. No action was performed.')			
 
 	def resource(self, param):
 		pass
@@ -184,7 +305,7 @@ class Blinker:
 			print('	vm_cpu_set:  ', config['vm']['cpu_set'])
 			print('	vm_cpu_usage:', config['vm']['cpu_usage'])
 			print('	vm_ram_usage:', config['vm']['ram_usage'])
-			if config['process']['progress']:
+			if config['process']:
 				print('	progress     ', config['process']['progress'])
 			print('--------------------------------')
 

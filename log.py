@@ -65,10 +65,11 @@ class Log:
 		self.conns = {}
 		self.req = {}
 		self.resp = {}
-		self.c_address = None
+		self.c_address = None # Setar esse endereço caso ele seja None
 		
 	def run(self):
 		print('Log.run')
+		# subir a VM
 		try:
 			while 1:
 				events = self.epoll.poll(1)
@@ -102,14 +103,23 @@ class Log:
 						self.epoll.unregister(fileno)
 						self.conns[fileno].close()
 						del self.conns[fileno]
+				# checa se a vm ainda ta processando
+				# se sim faz nada
+				# se nao pede uma instruca e manda para vm
 		finally:
 			self.epoll.unregister(self.sock.fileno())
 			self.epoll.close()
 			self.sock.close()
 
-	def pause(self, conn): # Nao esta funcionando corretamente
-		print('Log.pause')
-		conn.sendall(b'\x01' + b'pause' + Log.EOF)
+	def pause(self, conn): 
+		'''
+		1° passo: O Log recebe um comando do usuário requisitando que ele pause
+		          o processamento de uma instrução.
+
+		*2° passo: Avisa para o usuário o tempo limite antes de sua instrução atual
+				  ser reciclada.
+		'''
+		conn.sendall(b'pause' + Log.EOF) # Avisar quanto tempo falta
 		conn.close()
 		while 1:
 			conn, addr = self.sock.accept()
@@ -127,30 +137,50 @@ class Log:
 				self.stop()
 
 	def stop(self):
-		print('Log.stop')
-		print('Feedback: pine was stopped')
+		'''
+		*1° passo: Verifica se algo está sendo processado. Caso sim, avisa o sleigh
+				  que o pine se encerrará. Enquanto isso avisa o usuário que está
+				  esperando a resposta do sleigh.
+		
+		*2° passo: Um comando para desligar a máquina virtual é chamado. Enquanto
+				  isso avisa o usuário sobre isso.
+
+		3° passo: Encerra o processo deste programa.
+		'''
+		print('[Feedback] pine was stopped')
 		os.kill(os.getpid(), signal.SIGTERM)	
 
-	def letter(self, ip, port): #instructions		
-		print('Log.letter')
-		sock = socket.socket()
-		sock.connect(self.c_address)
-		sock.send(b'\x05' + Log.EOF)
-		# jogar a conexao para o self.req para receber as instrucoes
+	def letter(self, ip, port): #instructions
+		'''
+		1° passo: Manda uma mensagem para o sleigh solicitando uma nova instrução.
+		
+		2° passo: Registra a conexão com o sleigh na epoll para posteriormente rece-
+				  be-la de forma que não bloqueia o programa.
+		'''
+		conn = socket.socket()
+		conn.connect(self.c_address)		
+		conn.send(b'\x05' + Log.EOF)
+		conn.setblocking(0)
+		self.epoll.register(conn.fileno(), select.EPOLLIN)
+		self.conns[conn.fileno()] = conn
+		self.req[conn.fileno()] = b''
 
-	def thanks(self): #send_result
-		pass
+	def thanks(self, result):
+		'''
+		1° passo: Estabelece uma conexão com sleigh e insere a mensagem na epoll
+				  para ser enviada posteriormente.
+		'''
+		conn = socket.socket()
+		conn.connect(self.c_address)
+		conn.setblocking(0)
+		self.epoll.register(conn.fileno(), select.EPOLLOUT)
+		self.conns[conn.fileno()] = conn
+		self.resp[conn.fileno()] = b'\x55' + result + Log.EOF
 
 	def action(self, msg, conn):
-		'''
-		Dependendo do tipo de mensagem recebida uma diferente acao e tomada.
-		Atualmente,  este metodo  impossibilita  qualquer  tipo de comunicao 
-		enquanto estiver ativo, pois ele bloqueia o processo. 
-		'''
-		print('Log.action')
 		code, payload = msg[:1], msg[1:]
 		if code == b'\x00':
-			return b'\x00' + b'running' + Log.EOF
+			return b'running' + Log.EOF
 		elif code == b'\x01':
 			return self.pause(conn)
 		elif code == b'\x02':
