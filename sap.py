@@ -30,7 +30,7 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''''
+'''
 
 import sys
 import subprocess
@@ -76,7 +76,7 @@ def main(args):
 		child.close()                                                                                                                                                              
 		
 		if child.exitstatus == 0:
-			print( "SSH done!" )
+			print( "SSH Authentication done!" )
 		else:
 			print( "Failed" )	
 		
@@ -88,8 +88,7 @@ def main(args):
 		if p == 0:
 			print( "VM Destroyed!" )
 		else:
-			print( "Process Failed" )
-			exit()
+			print( "VM is not running, the 1st step isn't necessary..." )
 		
 		# Undefine VM
 		command_line = shlex.split( "virsh undefine "+vm_identifier )
