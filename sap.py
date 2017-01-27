@@ -39,14 +39,13 @@ import time
 
 import pexpect
 
-def main(args):
-			
+class Sap:
+
 	vm_identifier = "AutomaticCopy"
 
-	if sys.argv[1] == '3' :
-		
+	def start(self):
 		# Clone an existing VM image
-		command_line = shlex.split( "virt-clone --connect=qemu:///system -o CupidVM -n "+vm_identifier+" -f /var/lib/libvirt/images/"+vm_identifier+".img" )
+		command_line = shlex.split( "virt-clone --connect=qemu:///system -o CupidVM -n "+self.vm_identifier+" -f /var/lib/libvirt/images/"+self.vm_identifier+".img" )
 		print( command_line )
 		p = subprocess.Popen( command_line ).wait()
 		if p == 0:
@@ -56,7 +55,7 @@ def main(args):
 			exit()
 			
 		# Boot the created copy
-		command_line = shlex.split( "virsh start "+vm_identifier )
+		command_line = shlex.split( "virsh start "+self.vm_identifier )
 		print( command_line )
 		p = subprocess.Popen( command_line ).wait()
 		if p == 0:
@@ -68,7 +67,7 @@ def main(args):
 		time.sleep( 60 )
 		
 		# SSH Authorized Key Authentication 
-		ssh_cmd = './sap_util.sh '+vm_identifier                                                                                                                 
+		ssh_cmd = './sap_util.sh '+self.vm_identifier                                                                                                                 
 		child = pexpect.spawn(ssh_cmd, timeout=None)                                                                                                                            
 		child.expect(['password: '])                                                                                                                                                                                                                                                                                               
 		child.sendline('Omap2014')                                                                                                                                                   
@@ -79,10 +78,10 @@ def main(args):
 			print( "SSH Authentication done!" )
 		else:
 			print( "Failed" )	
-		
-	if sys.argv[1] == '4' :
+
+	def stop(self):
 		# Turn off the VM
-		command_line = shlex.split( "virsh destroy "+vm_identifier )
+		command_line = shlex.split( "virsh destroy "+self.vm_identifier )
 		print( command_line )
 		p = subprocess.Popen( command_line ).wait()
 		if p == 0:
@@ -91,7 +90,7 @@ def main(args):
 			print( "VM is not running, the 1st step isn't necessary..." )
 		
 		# Undefine VM
-		command_line = shlex.split( "virsh undefine "+vm_identifier )
+		command_line = shlex.split( "virsh undefine "+self.vm_identifier )
 		print( command_line )
 		p = subprocess.Popen( command_line ).wait()
 		if p == 0:
@@ -101,7 +100,7 @@ def main(args):
 			exit()
 			
 		# Erase the Virtual Disk
-		command_line = shlex.split( "rm /var/lib/libvirt/images/"+vm_identifier+".img" )
+		command_line = shlex.split( "rm /var/lib/libvirt/images/"+self.vm_identifier+".img" )
 		print( command_line )
 		p = subprocess.Popen( command_line ).wait()
 		if p == 0:
@@ -111,6 +110,30 @@ def main(args):
 			exit()
 			
 		print( "The VM is not running anymore" )
+
+	def pause(self):
+		# pine-stop steps
+		command_line = shlex.split( "virsh shutdown "+self.vm_identifier )
+		print( command_line )
+		p = subprocess.Popen( command_line ).wait()
+		if p == 0:
+			print( "VM turned off!" )
+		else:
+			print( "Process Failed" )
+			exit()
+
+	def resume(self):
+		# pine-stop steps
+		command_line = shlex.split( "virsh start "+self.vm_identifier )
+		print( command_line )
+		p = subprocess.Popen( command_line ).wait()
+		if p == 0:
+			print( "VM turned off!" )
+		else:
+			print( "Process Failed" )
+			exit()		
+
+def main(args):			
 		
 	if sys.argv[1] == '5' :
 		# Instructions
@@ -129,17 +152,6 @@ def main(args):
 			print( "Process Failed" )
 			exit()
 		
-	if sys.argv[1] == b'\x07' :
-		# pine-stop steps
-		command_line = shlex.split( "virsh shutdown "+vm_identifier )
-		print( command_line )
-		p = subprocess.Popen( command_line ).wait()
-		if p == 0:
-			print( "VM turned off!" )
-		else:
-			print( "Process Failed" )
-			exit()
-		
 	if sys.argv[1] == b'\x04' :
 		# pine-start steps
 		#command_line = shlex.split( "ls -lah" )
@@ -151,4 +163,3 @@ def main(args):
 if __name__ == '__main__':
     import sys
     sys.exit(main(sys.argv))
-

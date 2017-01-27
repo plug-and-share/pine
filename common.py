@@ -38,26 +38,22 @@ DATE           12/08/2016
 AUTHORS        TASHIRO
 PYTHON_VERSION v3
 '''
-# Dependendcias 
-#	libvirt: sudo apt-get install libvirt-bin
-#	qemu   : sudo apt-get install qemu-utils qemu-kvm
-import errno
-import os
-import shutil
+import json
 
-def copy_files(src, dest):
-	try:
-		shutil.copytree(src, dest)
-	except OSError as exc: 
-		if exc.errno == errno.ENOTDIR:
-			shutil.copy(src, dst)
-		else:
-			raise
+class Common():	
 
-if __name__ == '__main__':
-	try:
-		copy_files(os.getcwd(), '/usr/local/bin/pinesrc')
-		os.system('install -o root -m 555 pine /usr/local/bin')
-		os.system('sudo apt-get install libvirt-bin qemu-utils qemu-kvm')
-	except PermissionError:
-		print('[Error] try again using sudo privileges.')
+	@classmethod
+	def update_config(cls, new_config):
+		with open('config.json') as config_file:
+			config = json.load(config_file)
+		config.update(new_config)
+		with open('config.json', 'w') as config_file:
+			json.dump(config, config_file, indent=4)
+
+	@classmethod
+	def get_config_info(cls, key):
+		with open('config.json') as config_file:
+			config = json.load(config_file)
+		for k in key:
+			config = config[k]
+		return config

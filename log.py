@@ -42,6 +42,10 @@ import os
 import select
 import signal
 import socket
+import sys
+
+from  common import Common
+import sap
 
 class Log:
 	'''
@@ -55,7 +59,6 @@ class Log:
 	EOF = b'\n\r\t'
 	
 	def __init__(self):
-		print('Log.__init__')
 		self.sock = socket.socket()
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.sock.bind(('localhost', 65500))
@@ -65,18 +68,26 @@ class Log:
 		self.conns = {}
 		self.req = {}
 		self.resp = {}
-		self.c_address = None # Setar esse endereço caso ele seja None
+		self.c_address = None
+		self.vm_controller = sap.Sap()
+		signal.signal(signal.SIGTERM, self.sigterm)
 		
+	def sigterm(self, signum, frame):
+		'''
+		Muda o estado caso o processo seja terminado inesperadamente. 
+		TODO: Ver o que exatamente isso ira tratar
+		'''
+		Common.update_config({'state': 'stopped'})
+		sys.exit()
+
 	def run(self):
-		print('Log.run')
-		# subir a VM
+		self.vm_controller.start()
 		try:
 			while 1:
 				events = self.epoll.poll(1)
 				for fileno, event in events:
 					if fileno == self.sock.fileno():
 						conn, addr = self.sock.accept()
-						print('DEBUG: Log.run', addr)
 						conn.setblocking(0)
 						self.epoll.register(conn.fileno(), select.EPOLLIN)
 						self.conns[conn.fileno()] = conn
@@ -84,7 +95,6 @@ class Log:
 					elif event & select.EPOLLIN:
 						self.req[fileno] += self.conns[fileno].recv(1024)
 						if Log.EOF in self.req[fileno]:
-							print('DEBUG: Log.run.EPOLLIN', self.req[fileno][:-3])			
 							self.resp[fileno] = self.action(self.req[fileno][:-3], self.conns[fileno])
 							if self.resp[fileno] != None:
 								self.epoll.modify(fileno, select.EPOLLOUT)
@@ -94,7 +104,6 @@ class Log:
 								del self.conns[fileno]					
 					elif event & select.EPOLLOUT:
 						bw = self.conns[fileno].send(self.resp[fileno])
-						print('DEBUG: Log.run.EPOLLOUT', bw)
 						self.resp[fileno] = self.resp[fileno][bw:]
 						if len(self.resp[fileno]) == 0:
 							self.epoll.modify(fileno, 0)
@@ -116,10 +125,10 @@ class Log:
 		1° passo: O Log recebe um comando do usuário requisitando que ele pause
 		          o processamento de uma instrução.
 
-		*2° passo: Avisa para o usuário o tempo limite antes de sua instrução atual
-				  ser reciclada.
+		*2° passo: Avisa o sleigh que o pine pausou.	
 		'''
-		conn.sendall(b'pause' + Log.EOF) # Avisar quanto tempo falta
+		# self.vm_controller.pause()
+		conn.sendall(b'paused' + Log.EOF) # Avisar quanto tempo falta
 		conn.close()
 		while 1:
 			conn, addr = self.sock.accept()
@@ -128,15 +137,17 @@ class Log:
 				msg += conn.recv(1024)
 			code = msg[:1]
 			if code == b'\x00':
-				conn.sendall(b'\x00' +  b'paused' + Log.EOF)
+				# self.vm_controller.resume() TODO****
+				conn.sendall(b'running' + Log.EOF)
 				conn.close()
+				break
 			elif code == b'\x01':
-				conn.sendall(b'\x01' + b'paused' + Log.EOF)
+				conn.sendall(b'paused' + Log.EOF)
 				conn.close()
 			elif code == b'\x02':
-				self.stop()
+				self.stop(conn)
 
-	def stop(self):
+	def stop(self, conn):
 		'''
 		*1° passo: Verifica se algo está sendo processado. Caso sim, avisa o sleigh
 				  que o pine se encerrará. Enquanto isso avisa o usuário que está
@@ -145,9 +156,12 @@ class Log:
 		*2° passo: Um comando para desligar a máquina virtual é chamado. Enquanto
 				  isso avisa o usuário sobre isso.
 
-		3° passo: Encerra o processo deste programa.
+		*3° passo: Avisa o sleigh que o pine parou.
+
+		3° passo: Envia um feedback e encerra o processo deste programa.
 		'''
-		print('[Feedback] pine was stopped')
+		conn.sendall(b'stopped' + Log.EOF)
+		# self.vm_controller.stop()
 		os.kill(os.getpid(), signal.SIGTERM)	
 
 	def letter(self, ip, port): #instructions
@@ -184,7 +198,7 @@ class Log:
 		elif code == b'\x01':
 			return self.pause(conn)
 		elif code == b'\x02':
-			return self.stop()
+			return self.stop(conn)
 		elif code == b'\x43': # TODO
 			pass
 			#return self.process()
