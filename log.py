@@ -68,7 +68,7 @@ class Log:
 		self.conns = {}
 		self.req = {}
 		self.resp = {}
-		self.c_address = None
+		self.c_address = tuple(Common.get_config_info(['process', 'sleigh_address']))
 		self.vm_controller = sap.Sap()
 		signal.signal(signal.SIGTERM, self.sigterm)
 		
@@ -80,7 +80,32 @@ class Log:
 		Common.update_config({'state': 'stopped'})
 		sys.exit()
 
-	def run(self):
+	def ping(self, address, msg):
+		'''
+		Estabelece uma conexão com sleigh e insere a mensagem na epoll para ser 
+		enviada posteriormente.
+		'''
+		conn = socket.socket()
+		conn.connect(address)
+		conn.setblocking(0)
+		self.epoll.register(conn.fileno(), select.EPOLLOUT)
+		self.conns[conn.fileno()] = conn
+		self.resp[conn.fileno()] = msg
+
+	def pingoutin(self, address, msg):
+		'''
+		Estabelece uma conexão com o sleigh, manda uma mensagem e depois espera
+		uma resposta.
+		'''
+		conn = socket.socket()
+		conn.connect(address)
+		conn.sendall(msg) # idealmente deveria enviar também de forma assincrona (***TODO***)
+		conn.setblocking(0)
+		self.epoll.register(conn.fileno(), select.EPOLLIN)
+		self.conns[conn.fileno()] = conn
+		self.req[conn.fileno()] = b''
+
+	def run(self):		
 		self.vm_controller.start()
 		try:
 			while 1:
@@ -147,7 +172,7 @@ class Log:
 			elif code == b'\x02':
 				self.stop(conn)
 
-	def stop(self, conn):
+	def stop(self, conn, step): # TODO: Testar, mudanças feitas
 		'''
 		*1° passo: Verifica se algo está sendo processado. Caso sim, avisa o sleigh
 				  que o pine se encerrará. Enquanto isso avisa o usuário que está
@@ -157,48 +182,43 @@ class Log:
 				  isso avisa o usuário sobre isso.
 
 		*3° passo: Avisa o sleigh que o pine parou.
-
-		3° passo: Envia um feedback e encerra o processo deste programa.
 		'''
+		'''if step == 0:
+			conn.sendall(b'stopping-vm' + Log.EOF)
+			 self.vm_controller.stop()
+		elif step == 1:
+			conn.sendall(b'warning-sleigh' + Log.EOF)
+			self.pingoutin(self.c_address, b'\x99' + Log.EOF)			
+		elif step == 2:
+			conn.sendall(b'killing-process' + Log.EOF)
+			os.kill(os.getpid(), signal.SIGTERM)'''
+		self.vm_controller.stop()
 		conn.sendall(b'stopped' + Log.EOF)
-		# self.vm_controller.stop()
-		os.kill(os.getpid(), signal.SIGTERM)	
+		os.kill(os.getpid(), signal.SIGTERM)
 
-	def letter(self, ip, port): #instructions
+	def letter(self): #instructions
 		'''
 		1° passo: Manda uma mensagem para o sleigh solicitando uma nova instrução.
 		
 		2° passo: Registra a conexão com o sleigh na epoll para posteriormente rece-
 				  be-la de forma que não bloqueia o programa.
 		'''
-		conn = socket.socket()
-		conn.connect(self.c_address)		
-		conn.send(b'\x05' + Log.EOF)
-		conn.setblocking(0)
-		self.epoll.register(conn.fileno(), select.EPOLLIN)
-		self.conns[conn.fileno()] = conn
-		self.req[conn.fileno()] = b''
+		self.pingoutin(self.c_address, b'\x05' + Log.EOF)
 
 	def thanks(self, result):
 		'''
-		1° passo: Estabelece uma conexão com sleigh e insere a mensagem na epoll
-				  para ser enviada posteriormente.
+		Envia o resultado para o sleigh.
 		'''
-		conn = socket.socket()
-		conn.connect(self.c_address)
-		conn.setblocking(0)
-		self.epoll.register(conn.fileno(), select.EPOLLOUT)
-		self.conns[conn.fileno()] = conn
-		self.resp[conn.fileno()] = b'\x55' + result + Log.EOF
+		self.ping(self.c_address, b'\x55' + result + Log.EOF)
 
-	def action(self, msg, conn):
+	def action(self, msg, conn):		
 		code, payload = msg[:1], msg[1:]
 		if code == b'\x00':
 			return b'running' + Log.EOF
 		elif code == b'\x01':
 			return self.pause(conn)
 		elif code == b'\x02':
-			return self.stop(conn)
+			return self.stop(conn, 0)
 		elif code == b'\x43': # TODO
 			pass
 			#return self.process()

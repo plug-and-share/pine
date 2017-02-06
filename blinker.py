@@ -38,10 +38,12 @@ DATE           12/12/2016
 AUTHORS        CANABARRO,DIAS,TASHIRO
 PYTHON_VERSION v3
 '''
+import json
 import subprocess
 
 from branch import Branch
 from common import Common
+
 
 class Blinker:
 
@@ -62,7 +64,7 @@ class Blinker:
 				  apenas avisa o usuário. Se estiver parado avisa o usuário e solici-
 				  ta uma confirmação para voltar a rodar e avisa o *sleigh*. Se esti-
 				  ver parado inicia o começa a rodar o pine.
-		'''
+		'''		
 		process = Common.get_config_info(['process'])
 		if not process:
 			print('[Feedback] pine need to collaborating with an application to run.')
@@ -85,7 +87,7 @@ class Blinker:
 		elif state == 'stopped':
 			subprocess.Popen(['python3', 'log.py'])
 			Common.update_config({'state': 'running'})			
-			print('[Feedback] pine is running. You can check the state using the --config command.')
+			print('Feedback: pine is running. You can check the state using the --config command.')
 			return
 
 	def pause(self): # OK
@@ -132,15 +134,19 @@ class Blinker:
 			while confirm not in ('Y', 'y', 'n', 'N'):
 				confirm = input('[Warning] pine is running or paused. All data will be descarted if you confirm the action [Y/n]')
 			if confirm == 'Y' or confirm == 'y':
-				branch = Branch(self.port, ('localhost', 65500))
-				branch.send(b'\x02' + Blinker.EOF)
-				resp = branch.recv()
-				branch.close()
-				if resp == b'stopped' + Blinker.EOF:
+				try:
+					branch = Branch(self.port, ('localhost', 65500))
+					branch.send(b'\x02' + Blinker.EOF)
+					resp = branch.recv()
+					branch.close()
+					if resp == b'stopped' + Blinker.EOF:
+						Common.update_config({'state': 'stopped'})
+						print('[Feedback] pine was stopped. You can check the state using --config command.')
+				except ConnectionRefusedError:
 					Common.update_config({'state': 'stopped'})
 					print('[Feedback] pine was stopped. You can check the state using --config command.')
 		elif state == 'stopped':
-			print('[Feedback] pine is already stopped. None action was performed. You can check the state using --config command')
+			print('[Feedback] pine is already stopped. None action was performed. You can check the state using --config command')		
 
 	def collaborate(self, address): # OK
 		'''
@@ -202,8 +208,8 @@ class Blinker:
 			resp = branch.recv()
 			branch.close()
 			code, payload = resp[:1], resp[1:-3]
-			Common.update_config({'process': None})
 			print('[Feedback] ....')
+			Common.update_config({'process': None})
 		else:
 			print('[Feedback] pine was not collaborating with an aplication. No action was performed.')			
 
