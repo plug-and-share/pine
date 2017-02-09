@@ -38,6 +38,7 @@ DATE           12/08/2016
 AUTHORS        TASHIRO
 PYTHON_VERSION v3
 '''
+import getpass
 import os 
 import select
 import signal
@@ -70,6 +71,7 @@ class Log:
 		self.resp = {}
 		self.c_address = tuple(Common.get_config_info(['process', 'sleigh_address']))
 		self.vm_controller = sap.Sap()
+		self.processing = False
 		signal.signal(signal.SIGTERM, self.sigterm)
 		
 	def sigterm(self, signum, frame):
@@ -85,12 +87,16 @@ class Log:
 		Estabelece uma conexão com sleigh e insere a mensagem na epoll para ser 
 		enviada posteriormente.
 		'''
-		conn = socket.socket()
-		conn.connect(address)
-		conn.setblocking(0)
+		try:
+			conn = socket.socket()
+			conn.connect(address)
+			conn.setblocking(0)
+		except ConnectionRefusedError:
+			return False
 		self.epoll.register(conn.fileno(), select.EPOLLOUT)
 		self.conns[conn.fileno()] = conn
 		self.resp[conn.fileno()] = msg
+		return True
 
 	def pingoutin(self, address, msg):
 		'''
@@ -99,51 +105,58 @@ class Log:
 		'''
 		conn = socket.socket()
 		conn.connect(address)
-		conn.sendall(msg) # idealmente deveria enviar também de forma assincrona (***TODO***)
+		conn.sendall(msg)
 		conn.setblocking(0)
 		self.epoll.register(conn.fileno(), select.EPOLLIN)
 		self.conns[conn.fileno()] = conn
 		self.req[conn.fileno()] = b''
 
-	def run(self):		
-		self.vm_controller.start()
-		try:
-			while 1:
-				events = self.epoll.poll(1)
-				for fileno, event in events:
-					if fileno == self.sock.fileno():
-						conn, addr = self.sock.accept()
-						conn.setblocking(0)
-						self.epoll.register(conn.fileno(), select.EPOLLIN)
-						self.conns[conn.fileno()] = conn
-						self.req[conn.fileno()] = b''
-					elif event & select.EPOLLIN:
-						self.req[fileno] += self.conns[fileno].recv(1024)
-						if Log.EOF in self.req[fileno]:
-							self.resp[fileno] = self.action(self.req[fileno][:-3], self.conns[fileno])
-							if self.resp[fileno] != None:
-								self.epoll.modify(fileno, select.EPOLLOUT)
-							else:
-								self.epoll.unregister(fileno)
-								self.conns[fileno].close()
-								del self.conns[fileno]					
-					elif event & select.EPOLLOUT:
-						bw = self.conns[fileno].send(self.resp[fileno])
-						self.resp[fileno] = self.resp[fileno][bw:]
-						if len(self.resp[fileno]) == 0:
-							self.epoll.modify(fileno, 0)
-							self.conns[fileno].shutdown(socket.SHUT_RDWR)
-					elif event & select.EPOLLHUP:
-						self.epoll.unregister(fileno)
-						self.conns[fileno].close()
-						del self.conns[fileno]
-				# checa se a vm ainda ta processando
-				# se sim faz nada
-				# se nao pede uma instruca e manda para vm
-		finally:
-			self.epoll.unregister(self.sock.fileno())
-			self.epoll.close()
-			self.sock.close()
+	def run(self):
+		Common.msg_to_user('preparing to launch virtual machine', Common.INFO_MSG)
+		if self.vm_controller.start():
+			Common.msg_to_user('pine is running. You can check the state using --config command', Common.INFO_MSG)
+			Common.update_config({'state': 'running'})
+			try:
+				process = None
+				while 1:
+					events = self.epoll.poll(1)
+					for fileno, event in events:
+						if fileno == self.sock.fileno():
+							conn, addr = self.sock.accept()
+							conn.setblocking(0)
+							self.epoll.register(conn.fileno(), select.EPOLLIN)
+							self.conns[conn.fileno()] = conn
+							self.req[conn.fileno()] = b''
+						elif event & select.EPOLLIN:
+							self.req[fileno] += self.conns[fileno].recv(1024)
+							if Log.EOF in self.req[fileno]:
+								self.resp[fileno] = self.action(self.req[fileno][:-3], self.conns[fileno])
+								if self.resp[fileno] != None:
+									self.epoll.modify(fileno, select.EPOLLOUT)
+								else:
+									self.epoll.unregister(fileno)
+									self.conns[fileno].close()
+									del self.conns[fileno]					
+						elif event & select.EPOLLOUT:
+							bw = self.conns[fileno].send(self.resp[fileno])
+							self.resp[fileno] = self.resp[fileno][bw:]
+							if len(self.resp[fileno]) == 0:
+								self.epoll.modify(fileno, 0)
+								self.conns[fileno].shutdown(socket.SHUT_RDWR)
+						elif event & select.EPOLLHUP:
+							self.epoll.unregister(fileno)
+							self.conns[fileno].close()
+							del self.conns[fileno]
+					if self.processing == False:
+						self.letter()
+			finally:
+				self.epoll.unregister(self.sock.fileno())
+				self.epoll.close()
+				self.sock.close()
+				Common.update_config({'state': 'stopped'})
+				# self.error_handler()
+		else:
+			pass
 
 	def pause(self, conn): 
 		'''
@@ -152,9 +165,12 @@ class Log:
 
 		*2° passo: Avisa o sleigh que o pine pausou.	
 		'''
-		# self.vm_controller.pause()
-		conn.sendall(b'paused' + Log.EOF) # Avisar quanto tempo falta
+		Common.msg_to_user('pausing virtual machine', Common.INFO_MSG)
+		self.vm_controller.pause()
+		conn.sendall(b'paused' + Log.EOF)
 		conn.close()
+		Common.msg_to_user('pine was paused. You can resume it using the run command', Common.INFO_MSG)
+		Common.update_config({'state': 'paused'})
 		while 1:
 			conn, addr = self.sock.accept()
 			msg = b''
@@ -162,7 +178,8 @@ class Log:
 				msg += conn.recv(1024)
 			code = msg[:1]
 			if code == b'\x00':
-				# self.vm_controller.resume() TODO****
+				self.vm_controller.resume()
+				Common.update_config({'state': 'running'})
 				conn.sendall(b'running' + Log.EOF)
 				conn.close()
 				break
@@ -172,28 +189,24 @@ class Log:
 			elif code == b'\x02':
 				self.stop(conn)
 
-	def stop(self, conn, step): # TODO: Testar, mudanças feitas
+	def stop(self, conn):
 		'''
 		*1° passo: Verifica se algo está sendo processado. Caso sim, avisa o sleigh
 				  que o pine se encerrará. Enquanto isso avisa o usuário que está
 				  esperando a resposta do sleigh.
 		
-		*2° passo: Um comando para desligar a máquina virtual é chamado. Enquanto
+		2° passo: Um comando para desligar a máquina virtual é chamado. Enquanto
 				  isso avisa o usuário sobre isso.
 
-		*3° passo: Avisa o sleigh que o pine parou.
+		3° passo: Avisa o sleigh que o pine parou.
 		'''
-		'''if step == 0:
-			conn.sendall(b'stopping-vm' + Log.EOF)
-			 self.vm_controller.stop()
-		elif step == 1:
-			conn.sendall(b'warning-sleigh' + Log.EOF)
-			self.pingoutin(self.c_address, b'\x99' + Log.EOF)			
-		elif step == 2:
-			conn.sendall(b'killing-process' + Log.EOF)
-			os.kill(os.getpid(), signal.SIGTERM)'''
+		Common.msg_to_user('stopping VM', Common.INFO_MSG)
 		self.vm_controller.stop()
+		Common.msg_to_user('warning sleigh that pine will stop', Common.INFO_MSG)
+		self.ping(self.c_address, b'\x07' + Log.EOF)
 		conn.sendall(b'stopped' + Log.EOF)
+		Common.msg_to_user('killing pine process', Common.INFO_MSG)
+		Common.update_config({'state': 'stopped'})
 		os.kill(os.getpid(), signal.SIGTERM)
 
 	def letter(self): #instructions
@@ -209,7 +222,12 @@ class Log:
 		'''
 		Envia o resultado para o sleigh.
 		'''
-		self.ping(self.c_address, b'\x55' + result + Log.EOF)
+		self.ping(self.c_address, b'\x06' + result + Log.EOF)
+		self.processing = False
+
+	def process(self, payload):
+		self.vm_controller.communicate(payload)
+		self.processing = True
 
 	def action(self, msg, conn):		
 		code, payload = msg[:1], msg[1:]
@@ -218,10 +236,12 @@ class Log:
 		elif code == b'\x01':
 			return self.pause(conn)
 		elif code == b'\x02':
-			return self.stop(conn, 0)
-		elif code == b'\x43': # TODO
-			pass
-			#return self.process()
+			return self.stop(conn)
+		elif code == b'\x45': # check code
+			return self.process(payload)
+		elif code == b'\x99':
+			return self.thanks(payload)
+
 		
 if __name__ == '__main__':
 	pine_log = Log()

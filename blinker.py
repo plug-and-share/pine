@@ -38,12 +38,12 @@ DATE           12/12/2016
 AUTHORS        CANABARRO,DIAS,TASHIRO
 PYTHON_VERSION v3
 '''
+import getpass
 import json
 import subprocess
 
 from branch import Branch
 from common import Common
-
 
 class Blinker:
 
@@ -54,7 +54,7 @@ class Blinker:
 		self.options = options
 		self.args = args
 
-	def run(self): # OK*
+	def run(self):
 		'''
 		1° passo: verificar se o pine esta colaborando com alguem
 
@@ -67,30 +67,27 @@ class Blinker:
 		'''		
 		process = Common.get_config_info(['process'])
 		if not process:
-			print('[Feedback] pine need to collaborating with an application to run.')
+			Common.msg_to_user('pine need to be collaborating with an application to run', Common.ERRO_MSG)
 			return
 		state = Common.get_config_info(['state'])
 		if state == 'running':
-			print('[Feedback] pine is already running. You can check the state using the --config command.')
+			Common.msg_to_user('pine is already running. You can check the state using the --config command', Common.INFO_MSG)
 		elif state == 'paused':
 				confirm = ''
 				while confirm not in ('Y', 'y', 'n', 'N'):
-					confirm = input('[Warning] pine was paused. You want to rerun it? [Y/n] ')
+					Common.msg_to_user('pine was paused. You want to rerun it: [Y/n] ', Common.WARN_MSG)
+					confirm = input()
 				if confirm == 'Y' or confirm == 'y':
 					branch = Branch(self.port, ('localhost', 65500))	
 					branch.send(b'\x00' + Blinker.EOF)
 					resp = branch.recv()
 					branch.close()
 					if resp[:-3] == b'running':
-						Common.update_config({'state': 'running'})
-						print('[Feedback] pine is rerunning again. You can check the state using the --config command')
+						Common.msg_to_user('pine was resume. You can check the state using the --config command', Common.INFO_MSG)
 		elif state == 'stopped':
-			subprocess.Popen(['python3', 'log.py'])
-			Common.update_config({'state': 'running'})			
-			print('Feedback: pine is running. You can check the state using the --config command.')
-			return
+			subprocess.Popen('echo ' + getpass.getpass('sudo password: ') + ' | sudo -S python3 log.py', shell=True, stdout=subprocess.DEVNULL)
 
-	def pause(self): # OK
+	def pause(self): 
 		'''
 		1° passo: Verifica o estado atual do pine.
 
@@ -102,25 +99,23 @@ class Blinker:
 		if state == 'running':
 			confirm = ''
 			while confirm not in ('Y', 'y', 'n', 'N'):
-				confirm = input('[Warning] pine is running. All process will be paused if you confirm the action [Y/n] ')
+				Common.msg_to_user('pine is running. All process will be paused if you confirm the action [Y/n] ', Common.WARN_MSG)
+				confirm = input()
 			if confirm == 'Y' or confirm == 'y':
 				branch = Branch(self.port, ('localhost', 65500))
 				branch.send(b'\x01' + Blinker.EOF)
 				resp = branch.recv()
 				branch.close()				
 				if resp == b'paused' + Blinker.EOF:
-					Common.update_config({'state': 'paused'})
 					max_wait_time = Common.get_config_info(['process', 'max_wait_time'])					
-					print('[Feedback] pine was paused. You can check the state using the --config command.')
-					print('[Warning] You have', max_wait_time / 60, ' minutes before the actual processed data be discarded.')
 					if max_wait_time:
-						print('[Warning] You have', max_wait_time / 60, 'minutes before the actual processed data be discarded.')
+						Common.msg_to_user('yoy have ' + max_wait_time / 60 + ' minutes before the data processed be discarded', Common.INFO_MSG)
 		elif state == 'paused':
-			print('[Feedback] pine is already paused. You can check the state using --config command.')	
+			Common.msg_to_user('pine is already paused. You can check the state using --config command', Common.INFO_MSG)
 		elif state == 'stopped':
-			print('[Feedback] pine is stopped. No action was performed. You can check the state using --config command.')		
+			Common.msg_to_user('pine is stopped. No action was performed. You can check the state using --config command', Common.INFO_MSG)
 
-	def stop(self): # OK
+	def stop(self): 
 		'''
 		1° passo: Verifica o estado atual do pine.
 
@@ -132,23 +127,23 @@ class Blinker:
 		if state == 'running' or state == 'paused':
 			confirm = ''
 			while confirm not in ('Y', 'y', 'n', 'N'):
-				confirm = input('[Warning] pine is running or paused. All data will be descarted if you confirm the action [Y/n]')
+				Common.msg_to_user('pine is running or paused. All data will be descarted if you confirm the action [Y/n] ', Common.WARN_MSG)
+				confirm = input()
 			if confirm == 'Y' or confirm == 'y':
 				try:
 					branch = Branch(self.port, ('localhost', 65500))
 					branch.send(b'\x02' + Blinker.EOF)
 					resp = branch.recv()
 					branch.close()
-					if resp == b'stopped' + Blinker.EOF:
-						Common.update_config({'state': 'stopped'})
-						print('[Feedback] pine was stopped. You can check the state using --config command.')
+					if resp == b'stopped' + Blinker.EOF:						
+						Common.msg_to_user('pine was stopped. You can check the state using --config command', Common.INFO_MSG)
 				except ConnectionRefusedError:
 					Common.update_config({'state': 'stopped'})
-					print('[Feedback] pine was stopped. You can check the state using --config command.')
+					Common.msg_to_user('pine was stopped. You can check the state using --config command', Common.INFO_MSG)
 		elif state == 'stopped':
-			print('[Feedback] pine is already stopped. None action was performed. You can check the state using --config command')		
+			Common.msg_to_user('pine is already stopped. None action was performed. You can check the state using --config command', Common.INFO_MSG)
 
-	def collaborate(self, address): # OK
+	def collaborate(self, address): 
 		'''
 		1° passo: Checa se o pine já está colaborando. Se sim avisa o usuário e pede se ele deseja
 			      parar de colaborar com a aplicação a tual.
@@ -162,14 +157,14 @@ class Blinker:
 		if process:
 			confirm = ''
 			while confirm not in ('Y', 'y', 'n', 'N'):
-				confirm = input('[Warning] pine is already collaborating with an application. You wish descollaborate with it and collaborate with another application [Y/n]')
+				Common.msg_to_user('pine is already collaborating with an application. You wish descollaborate with it and collaborate with another application [Y/n] ', Common.WARN_MSG)
+				confirm = input()
 			if confirm == 'Y' or confirm == 'y':
 				self.descollaborate()
-				Common.update_config({'process': None})
 		try:
 			branch = Branch(self.port, address)
 		except ConnectionRefusedError:
-			print('[Error] The address is invalid or the sleigh doesn\'t exist. Please try again.')
+			Common.msg_to_user('The address is invalid or the sleigh doesn\'t exist anymore. Please try again with other address', Common.ERRO_MSG)
 			return
 		branch.send(b'\x03' + Blinker.EOF)
 		resp = branch.recv()		
@@ -185,9 +180,9 @@ class Blinker:
 				'max_wait_time': int(max_wait_time)
 			}
 		})
-		print('[Feedback] ...')
+		Common.msg_to_user('pine is collaborating with an application. Run to start to processing data', Common.INFO_MSG)
 
-	def descollaborate(self): # OK*
+	def descollaborate(self):
 		'''
 		1° passo: Verifica se o pine esta colaborando com alguem
 
@@ -201,20 +196,17 @@ class Blinker:
 				with open('config.json') as config_file:
 					config = json.load(config_file)
 					branch = Branch(self.port, tuple(config['process']['sleigh_address']))
+					branch.send(b'\x04' + Blinker.EOF)
+					resp = branch.recv()
+					branch.close()
+					code, payload = resp[:1], resp[1:-3]
+					Common.msg_to_user('pine is no longer collaborating with an application', Common.INFO_MSG)					
+					Common.update_config({'process': None})
 			except ConnectionRefusedError:
-				print('[Error] Was not possible to communicate with sleigh. Please check if it is still running.')
-				return 
-			branch.send(b'\x04' + Blinker.EOF)
-			resp = branch.recv()
-			branch.close()
-			code, payload = resp[:1], resp[1:-3]
-			print('[Feedback] ....')
-			Common.update_config({'process': None})
+				Common.update_config({'process': None})
 		else:
-			print('[Feedback] pine was not collaborating with an aplication. No action was performed.')			
-
-	def resource(self, param):
-		pass
+			Common.msg_to_user('pine was not collaboratin with an application. No action was performed', Common.INFO_MSG)
+			print('[Info] pine was not collaborating with an aplication. No action was performed.')			
 
 	def config(self): 
 		print('--------------------------------')
@@ -229,6 +221,7 @@ class Blinker:
 		print('--------------------------------')
 
 	def blink(self):
+		Common.update_config({'tty': subprocess.check_output('tty')[:-1].decode()})
 		if self.options.run:
 			self.run()
 		elif self.options.pause:
@@ -236,7 +229,7 @@ class Blinker:
 		elif self.options.stop:
 			self.stop()
 		elif self.options.collaborate:
-			ip, port = self.options.collaborate.split()
+			ip, port = self.options.collaborate.split(':')
 			self.collaborate((ip, int(port)))
 		elif self.options.descollaborate:
 			self.descollaborate()

@@ -39,8 +39,17 @@ AUTHORS        TASHIRO
 PYTHON_VERSION v3
 '''
 import json
+import os
+import time
 
 class Common():	
+
+	INFO_MSG = 'info'
+	WARN_MSG = 'warn'
+	ERRO_MSG = 'erro'
+	DBUG_MSG = 'dbug'
+	CRIT_MSG = 'crit'
+	CONFIG_FILE = 'config.json'
 
 	@classmethod
 	def update_config(cls, new_config):
@@ -57,3 +66,15 @@ class Common():
 		for k in key:
 			config = config[k]
 		return config
+
+	@classmethod
+	def msg_to_user(cls, msg, _type):
+		cmd = 'echo [{} - {}] {} > {}'.format(
+				time.strftime('%H:%M:%S'),
+				_type, 
+				msg, 				
+				cls.get_config_info(['tty'])
+			)
+		os.system(cmd)
+
+

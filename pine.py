@@ -80,5 +80,6 @@ sleigh 42-83
 santa 84-125
 north-pole 126-167
 south-pole 168-209
-cupid 209-255
+cupid 209-254
+vm 255
 '''

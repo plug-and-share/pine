@@ -39,127 +39,112 @@ import time
 
 import pexpect
 
+from common import Common
+
 class Sap:
 
-	vm_identifier = "AutomaticCopy"
+	vm_identifier = 'PineVM'
 
 	def start(self):
-		print('[Feedback] instantiating VM.')
-		# Clone an existing VM image
-		command_line = shlex.split("virt-clone --connect=qemu:///system -o CupidVM -n "+self.vm_identifier+" -f /var/lib/libvirt/images/"+self.vm_identifier+".img")
-		p = subprocess.Popen(command_line).wait()
+		Common.msg_to_user('cloning virtual machine image', Common.INFO_MSG)
+		cmd = shlex.split('virt-clone --connect=qemu:///system -o CupidVM -n ' + self.vm_identifier + ' -f /var/lib/libvirt/images/' + self.vm_identifier + '.img')
+		p = subprocess.Popen(cmd).wait()
 		if p == 0:
-			print("[Feedback] VM copy created...")
+			Common.msg_to_user('virtual machine image copy created', Common.INFO_MSG)
 		else:
-			print("[Error] Process Failed")
-			exit()		
-		# Boot the created copy
-		command_line = shlex.split("virsh start " + self.vm_identifier)
-		p = subprocess.Popen(command_line).wait()
+			Common.msg_to_user('was not possible clone virtual machine image. HELP MSG', Common.ERRO_MSG)
+			return False		
+		Common.msg_to_user('booting virtual machine', Common.INFO_MSG)
+		cmd = shlex.split('virsh start ' + self.vm_identifier)
+		p = subprocess.Popen(cmd).wait()
 		if p == 0:
-			print("[Feedback] VM started!")
+			Common.msg_to_user('virtual machine started', Common.INFO_MSG)
 		else:
-			print("[Error] Process Failed")
-			exit()		
+			Common.msg_to_user('was not possible start virtual machine', Common.ERRO_MSG)
+			return False
+		Common.msg_to_user('authenticating ssh with virtual machine', Common.INFO_MSG)
 		time.sleep(60)
-		# SSH Authorized Key Authentication 
-		ssh_cmd = './sap_util.sh ' + self.vm_identifier                                                                                                                 
-		child = pexpect.spawn(ssh_cmd, timeout=None)                                                                                                                            
-		child.expect(['password: '])                                                                                                                                                                                                                                                                                               
-		child.sendline('Omap2014')                                                                                                                                                   
-		child.expect(pexpect.EOF)                                                                                                                                                  
-		child.close()                                                                                                                                                              		
+		ssh_cmd = './sap_util.sh ' + self.vm_identifier
+		child = pexpect.spawn(ssh_cmd, timeout=None)
+		child.expect(['password: '])
+		child.sendline('Omap2014')
+		child.expect(pexpect.EOF)
+		child.close()
 		if child.exitstatus == 0:
-			print("[Feedback] SSH Authentication done!")
+			Common.msg_to_user('ssh authentication done', Common.INFO_MSG)
 		else:
-			print("[Error] Failed")
+			Common.msg_to_user('was not possible authenticate ssh', Common.ERRO_MSG)
+			return False
+		return True
 
 	def stop(self):		
-		passw = getpass.getpass()
-		# Turn off the VM
-		command_line = shlex.split("virsh destroy " + self.vm_identifier)
-		p = subprocess.Popen(command_line).wait()
+		cmd = shlex.split('virsh destroy ' + self.vm_identifier)
+		p = subprocess.Popen(cmd).wait()
 		if p == 0:
-			print("[Feedback] VM Destroyed!")
-		else:
-			print("[Feedback] VM is not running, the 1st step isn't necessary...")
-		# Undefine VM
-		command_line = shlex.split("virsh undefine " + self.vm_identifier)
-		p = subprocess.Popen(command_line).wait()
+			Common.msg_to_user('virtual machine was turned off', Common.INFO_MSG)
+		cmd = shlex.split('virsh undefine ' + self.vm_identifier)
+		p = subprocess.Popen(cmd).wait()
 		if p == 0:
-			print("[Feedback] VM Undefined!")
+			Common.msg_to_user('virtual machine image was undefined', Common.INFO_MSG)
 		else:
-			print("[Error] Process Failed")
-			exit()			
-		# Erase the Virtual Disk
-
-		'''
-		command_line = shlex.split("sudo rm /var/lib/libvirt/images/" + self.vm_identifier + ".img")
+			Common.msg_to_user('was not possible undefine virtual machine image', Commoin.ERRO_MSG)
+			return False
+		cmd = shlex.split('sudo rm /var/lib/libvirt/images/' + self.vm_identifier + '.img')		
+		p = subprocess.Popen(cmd).wait()
+		if p == 0:
+			Common.msg_to_user('virtual disk was erased', Common.INFO_MSG)
+		else:
+			Common.msg_to_user('was not possible erase virtual disk', Common.ERRO_MSG)
+			return False
+		return True
 		
-		p = subprocess.Popen(command_line).wait()
-		if p == 0:
-			print("[Feedback] Virtual Disk Erased!")
-		else:
-			print("[Error] Process Failed")
-			exit()
-		'''
-
-		command_line = 'sudo rm /var/lib/libvirt/images/' + self.vm_identifier + '.img'                                                                                                                 
-		child = pexpect.spawn(command_line, timeout=None)                                                                                                                            
-		child.expect(['password: '])                                                                                                                                                                                                                                                                                               
-		child.sendline(passw)                                                                                                                                                   
-		child.expect(pexpect.EOF)                                                                                                                                                  
-		child.close()                                                                                                                                                              		
-		if child.exitstatus == 0:
-			print("[Feedback] Virtual Disk Erased!")
-		else:
-			print("[Error] Process Failed")
-
-		print("[Feedback] The VM is not running anymore")
-
 	def pause(self):
-		# pine-stop steps
-		command_line = shlex.split("virsh shutdown " + self.vm_identifier)
-		p = subprocess.Popen( command_line ).wait()
+		cmd = shlex.split('virsh shutdown ' + self.vm_identifier)
+		p = subprocess.Popen(cmd).wait()
 		if p == 0:
-			print("VM turned off!")
+			Common.msg_to_user('virtual machine was turned off', Common.INFO_MSG)
 		else:
-			print("Process Failed")
-			exit()
+			Common.msg_to_user('was not possible pause virtual machine', Common.ERRO_MSG)
+			return False
+		return True
 
 	def resume(self):
-		# pine-stop steps
-		command_line = shlex.split("virsh start " + self.vm_identifier)
-		p = subprocess.Popen(command_line).wait()
+		cmd = shlex.split('virsh start ' + self.vm_identifier)
+		p = subprocess.Popen(cmd).wait()
 		if p == 0:
-			print("VM turned off!")
+			Common.msg_to_user('virtual machine was resumed', Common.INFO_MSG)
 		else:
-			print("Process Failed")
-			exit()		
+			Common.msg_to_user('was not possible resume virtual machine', Common.ERRO_MSG)
+			return False
+		return True
+ 
+	def communicate(self, instruction): #TODO
+		vm_ip = subprocess.check_output('arp -an | grep \"`virsh dumpxml PineVM | grep \"mac address\" | sed \"s/.*\'\\(.*\\)\'.*/\\1/g\"`\" | awk \'{gsub(/[\\(\\)]/,\"\",$2); print $2}\'', shell=True)[:-1].decode()
+		subprocess.Popen('ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@' + vm_ip + ' \'python3 script.py ' + instruction + '\'', shell=True)
 
 def main(args):					
 	if sys.argv[1] == '5' :
 		# Instructions
-		command_line = shlex.split( sys.argv[2] )
-		print( command_line )
-		p = subprocess.Popen( command_line )
+		cmd = shlex.split( sys.argv[2] )
+		print( cmd )
+		p = subprocess.Popen( cmd )
 		
 	if sys.argv[1] == b'\x06' :
 		# Result steps
-		#command_line = shlex.split( "ls -lah" )
-		print( command_line )
-		p = subprocess.Popen( command_line ).wait()
+		#cmd = shlex.split( 'ls -lah' )
+		print( cmd )
+		p = subprocess.Popen( cmd ).wait()
 		if p == 0:
-			print( "Procces Done!" )
+			print( 'Procces Done!' )
 		else:
-			print( "Process Failed" )
+			print( 'Process Failed' )
 			exit()
 		
 	if sys.argv[1] == b'\x04' :
 		# pine-start steps
-		#command_line = shlex.split( "ls -lah" )
-		print( command_line )
-		p = subprocess.Popen( command_line )
+		#cmd = shlex.split( 'ls -lah' )
+		print( cmd )
+		p = subprocess.Popen( cmd )
 		
 	return 0
 		
