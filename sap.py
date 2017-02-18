@@ -118,36 +118,9 @@ class Sap:
 			return False
 		return True
  
-	def communicate(self, instruction): #TODO
+	def communicate(self, instruction):
+		print( "comunicate")
 		vm_ip = subprocess.check_output('arp -an | grep \"`virsh dumpxml PineVM | grep \"mac address\" | sed \"s/.*\'\\(.*\\)\'.*/\\1/g\"`\" | awk \'{gsub(/[\\(\\)]/,\"\",$2); print $2}\'', shell=True)[:-1].decode()
-		subprocess.Popen('ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@' + vm_ip + ' \'python3 script.py ' + instruction + '\'', shell=True)
-
-def main(args):					
-	if sys.argv[1] == '5' :
-		# Instructions
-		cmd = shlex.split( sys.argv[2] )
-		print( cmd )
-		p = subprocess.Popen( cmd )
-		
-	if sys.argv[1] == b'\x06' :
-		# Result steps
-		#cmd = shlex.split( 'ls -lah' )
-		print( cmd )
-		p = subprocess.Popen( cmd ).wait()
-		if p == 0:
-			print( 'Procces Done!' )
-		else:
-			print( 'Process Failed' )
-			exit()
-		
-	if sys.argv[1] == b'\x04' :
-		# pine-start steps
-		#cmd = shlex.split( 'ls -lah' )
-		print( cmd )
-		p = subprocess.Popen( cmd )
-		
-	return 0
-		
-if __name__ == '__main__':
-    import sys
-    sys.exit(main(sys.argv))
+		host_ip = subprocess.check_output('/sbin/ifconfig eth0 | grep \'inet addr\' | cut -d: -f2 | awk \'{print $1}\'', shell=True)[:-1].decode()
+		Common.msg_to_user(instruction, Common.DBUG_MSG)
+		subprocess.Popen('ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@' + vm_ip + ' \'python3 script.py ' + host_ip + ' ' + instruction.decode() + '\'', shell=True)

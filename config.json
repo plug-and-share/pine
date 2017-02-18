@@ -1,10 +1,20 @@
 {
     "vm": {
-        "cpu_set": null,
-        "ram_usage": null,
+        "cpu_usage": null,
         "vcpu": null,
-        "cpu_usage": null
+        "ram_usage": null,
+        "cpu_set": null
     },
     "state": "stopped",
-    "process": "None"
+    "process": {
+        "processing_time_limit": 0,
+        "method_used": "schedule",
+        "max_wait_time": 0,
+        "vm_img": "655.626.652",
+        "sleigh_address": [
+            "localhost",
+            50000
+        ]
+    },
+    "tty": "/dev/pts/6"
 }

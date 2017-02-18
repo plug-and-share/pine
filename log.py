@@ -222,6 +222,7 @@ class Log:
 		'''
 		Envia o resultado para o sleigh.
 		'''
+		Common.msg_to_user(result, Common.DBUG_MSG)
 		self.ping(self.c_address, b'\x06' + result + Log.EOF)
 		self.processing = False
 
@@ -237,7 +238,7 @@ class Log:
 			return self.pause(conn)
 		elif code == b'\x02':
 			return self.stop(conn)
-		elif code == b'\x45': # check code
+		elif code == b'\x43':
 			return self.process(payload)
 		elif code == b'\x99':
 			return self.thanks(payload)

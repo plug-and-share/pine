@@ -30,7 +30,7 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''''
+'''
 import configparser
 import subprocess
 
@@ -52,3 +52,34 @@ p = subprocess.Popen( [ "virt install", "--name "+INI_Parser.get( 'Virtual_Machi
 	"--virt-type "+INI_Parser.get( 'Virtual_Machine', 'VIRTTYPE' ) ],
 	shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
 	
+'''
+def main(args):					
+	if sys.argv[1] == '5' :
+		# Instructions
+		cmd = shlex.split( sys.argv[2] )
+		print( cmd )
+		p = subprocess.Popen( cmd )
+		
+	if sys.argv[1] == b'\x06' :
+		# Result steps
+		#cmd = shlex.split( 'ls -lah' )
+		print( cmd )
+		p = subprocess.Popen( cmd ).wait()
+		if p == 0:
+			print( 'Procces Done!' )
+		else:
+			print( 'Process Failed' )
+			exit()
+		
+	if sys.argv[1] == b'\x04' :
+		# pine-start steps
+		#cmd = shlex.split( 'ls -lah' )
+		print( cmd )
+		p = subprocess.Popen( cmd )
+		
+	return 0
+		
+if __name__ == '__main__':
+    import sys
+    sys.exit(main(sys.argv))
+'''

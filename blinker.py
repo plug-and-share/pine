@@ -85,7 +85,7 @@ class Blinker:
 					if resp[:-3] == b'running':
 						Common.msg_to_user('pine was resume. You can check the state using the --config command', Common.INFO_MSG)
 		elif state == 'stopped':
-			subprocess.Popen('echo ' + getpass.getpass('sudo password: ') + ' | sudo -S python3 log.py', shell=True, stdout=subprocess.DEVNULL)
+			subprocess.Popen('echo ' + getpass.getpass('sudo password: ') + ' | python3 log.py', shell=True, stdout=subprocess.DEVNULL)
 
 	def pause(self): 
 		'''
@@ -166,11 +166,13 @@ class Blinker:
 		except ConnectionRefusedError:
 			Common.msg_to_user('The address is invalid or the sleigh doesn\'t exist anymore. Please try again with other address', Common.ERRO_MSG)
 			return
+		Common.msg_to_user('asking sleigh to collaborate', Common.INFO_MSG)
 		branch.send(b'\x03' + Blinker.EOF)
 		resp = branch.recv()		
 		branch.close()		
 		payload = resp[:-3]
 		method_name, vm_img, processing_time_limit, max_wait_time = payload.split()
+		Common.msg_to_user('updating pine configuration', Common.INFO_MSG)
 		Common.update_config({
 			'process': {
 				'method_used': method_name.decode(), 
