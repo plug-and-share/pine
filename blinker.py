@@ -42,8 +42,8 @@ import getpass
 import json
 import subprocess
 
-from branch import Branch
-from common import Common
+from pinesrc.branch import Branch
+from pinesrc.common import Common
 
 class Blinker:
 
@@ -85,7 +85,9 @@ class Blinker:
 					if resp[:-3] == b'running':
 						Common.msg_to_user('pine was resume. You can check the state using the --config command', Common.INFO_MSG)
 		elif state == 'stopped':
-			subprocess.Popen('echo ' + getpass.getpass('sudo password: ') + ' | python3 log.py', shell=True, stdout=subprocess.DEVNULL)
+			#subprocess.Popen('echo ' + getpass.getpass('sudo password: ') + ' | python3 log.py', shell=True, stdout=subprocess.DEVNULL)
+			subprocess.Popen('python3 /usr/local/bin/pinesrc/log.py', shell=True, stdout=subprocess.DEVNULL)
+			#subprocess.Popen('python3 log.py', shell=True)
 
 	def pause(self): 
 		'''
@@ -212,12 +214,12 @@ class Blinker:
 
 	def config(self): 
 		print('--------------------------------')
-		print('config:')
+		#print('config:')
 		print('	state:       ', Common.get_config_info(['state']))
-		print('	vm_vcpu:     ', Common.get_config_info(['vm', 'vcpu']))
-		print('	vm_cpu_set:  ', Common.get_config_info(['vm', 'cpu_set']))
-		print('	vm_cpu_usage:', Common.get_config_info(['vm', 'cpu_usage']))
-		print('	vm_ram_usage:', Common.get_config_info(['vm', 'ram_usage']))
+		#print('	vm_vcpu:     ', Common.get_config_info(['vm', 'vcpu']))
+		#print('	vm_cpu_set:  ', Common.get_config_info(['vm', 'cpu_set']))
+		#print('	vm_cpu_usage:', Common.get_config_info(['vm', 'cpu_usage']))
+		#print('	vm_ram_usage:', Common.get_config_info(['vm', 'ram_usage']))
 		#if config['process']:
 		#	print('	progress     ', config['process']['progress'])
 		print('--------------------------------')

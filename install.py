@@ -44,6 +44,7 @@ PYTHON_VERSION v3
 import errno
 import os
 import shutil
+import sys
 
 def copy_files(src, dest):
 	try:
@@ -56,8 +57,25 @@ def copy_files(src, dest):
 
 if __name__ == '__main__':
 	try:
-		copy_files(os.getcwd(), '/usr/local/bin/pinesrc')
-		os.system('install -o root -m 555 pine /usr/local/bin')
-		os.system('sudo apt-get install libvirt-bin qemu-utils qemu-kvm')
+		if '-u' in sys.argv:
+			if os.path.exists('/usr/local/bin/pinesrc'):
+				os.system('rm -rf /usr/local/bin/pinesrc')
+				os.system('rm /usr/local/bin/pine')
+			else:
+				print('[info] pine is not installed')
+		else:
+			if not os.path.exists('/usr/local/bin/pinesrc'):
+				print('[info] installing dependencies')
+				if os.system('sudo apt-get install libvirt-bin qemu-utils qemu-kvm') != 0:
+					print('[erro] was not possible to install the dependences (libvirt-bin or qemu-utils or qemu-kvm)')
+					exit()	
+				print('[info] copying source files to /usr/local/bin/')
+				copy_files(os.getcwd(), '/usr/local/bin/pinesrc')
+				print('[info] adding to pine execution privileges')
+				os.system('install -o root -m 555 pine /usr/local/bin')		
+				os.system('sudo chmod +x /usr/local/bin/pinesrc/sap_util.sh')
+				print('[info] pine was installed')
+			else:
+				print('[info] pine is already installed')
 	except PermissionError:
-		print('[Error] try again using sudo privileges.')
+		print('[erro] try again using sudo privileges')

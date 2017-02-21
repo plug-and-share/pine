@@ -49,19 +49,19 @@ class Common():
 	ERRO_MSG = 'erro'
 	DBUG_MSG = 'dbug'
 	CRIT_MSG = 'crit'
-	CONFIG_FILE = 'config.json'
+	CONFIG_FILE = '/usr/local/bin/pinesrc/config.json'
 
 	@classmethod
 	def update_config(cls, new_config):
-		with open('config.json') as config_file:
+		with open(Common.CONFIG_FILE) as config_file:
 			config = json.load(config_file)
 		config.update(new_config)
-		with open('config.json', 'w') as config_file:
+		with open(Common.CONFIG_FILE, 'w') as config_file:
 			json.dump(config, config_file, indent=4)
 
 	@classmethod
 	def get_config_info(cls, key):
-		with open('config.json') as config_file:
+		with open(Common.CONFIG_FILE) as config_file:
 			config = json.load(config_file)
 		for k in key:
 			config = config[k]

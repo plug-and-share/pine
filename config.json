@@ -1,20 +1,20 @@
 {
+    "process": {
+        "max_wait_time": 0,
+        "method_used": "schedule",
+        "sleigh_address": [
+            "10.81.112.82",
+            50000
+        ],
+        "processing_time_limit": 0,
+        "vm_img": "655.626.652"
+    },
     "vm": {
-        "cpu_usage": null,
         "vcpu": null,
         "ram_usage": null,
-        "cpu_set": null
+        "cpu_set": null,
+        "cpu_usage": null
     },
     "state": "stopped",
-    "process": {
-        "processing_time_limit": 0,
-        "method_used": "schedule",
-        "max_wait_time": 0,
-        "vm_img": "655.626.652",
-        "sleigh_address": [
-            "localhost",
-            50000
-        ]
-    },
-    "tty": "/dev/pts/6"
+    "tty": "/dev/pts/1"
 }

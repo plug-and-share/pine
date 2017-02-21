@@ -45,7 +45,7 @@ import signal
 import socket
 import sys
 
-from  common import Common
+from common import Common
 import sap
 
 class Log:
@@ -62,7 +62,7 @@ class Log:
 	def __init__(self):
 		self.sock = socket.socket()
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.sock.bind(('localhost', 65500))
+		self.sock.bind(('', 65500))
 		self.sock.listen(5)
 		self.epoll = select.epoll()
 		self.epoll.register(self.sock.fileno(), select.EPOLLIN)
@@ -80,6 +80,7 @@ class Log:
 		TODO: Ver o que exatamente isso ira tratar
 		'''
 		Common.update_config({'state': 'stopped'})
+		#self.vm_controller.stop()
 		sys.exit()
 
 	def ping(self, address, msg):
@@ -148,6 +149,7 @@ class Log:
 							self.conns[fileno].close()
 							del self.conns[fileno]
 					if self.processing == False:
+						Common.msg_to_user('SENDING LETTER', Common.DBUG_MSG)
 						self.letter()
 			finally:
 				self.epoll.unregister(self.sock.fileno())
@@ -216,6 +218,7 @@ class Log:
 		2° passo: Registra a conexão com o sleigh na epoll para posteriormente rece-
 				  be-la de forma que não bloqueia o programa.
 		'''
+		Common.msg_to_user('letter', Common.DBUG_MSG)
 		self.pingoutin(self.c_address, b'\x05' + Log.EOF)
 
 	def thanks(self, result):

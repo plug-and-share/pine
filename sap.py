@@ -31,7 +31,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
+import codecs
 import getpass
+import pickle
 import sys
 import subprocess
 import shlex
@@ -64,8 +66,10 @@ class Sap:
 			return False
 		Common.msg_to_user('authenticating ssh with virtual machine', Common.INFO_MSG)
 		time.sleep(60)
-		ssh_cmd = './sap_util.sh ' + self.vm_identifier
-		child = pexpect.spawn(ssh_cmd, timeout=None)
+		vm_ip = subprocess.check_output('arp -an | grep \"`virsh dumpxml PineVM | grep \"mac address\" | sed \"s/.*\'\\(.*\\)\'.*/\\1/g\"`\" | awk \'{gsub(/[\\(\\)]/,\"\",$2); print $2}\'', shell=True)[:-1].decode()
+
+		#ssh_cmd = '/usr/local/bin/pinesrc/sap_util.sh ' + self.vm_identifier
+		child = pexpect.spawn('cat /home/vipro/.ssh/id_rsa.pub | ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@'+vm_ip+' \'cat >> /home/cupid/.ssh/authorized_keys\' ', timeout=None)
 		child.expect(['password: '])
 		child.sendline('Omap2014')
 		child.expect(pexpect.EOF)
@@ -87,7 +91,7 @@ class Sap:
 		if p == 0:
 			Common.msg_to_user('virtual machine image was undefined', Common.INFO_MSG)
 		else:
-			Common.msg_to_user('was not possible undefine virtual machine image', Commoin.ERRO_MSG)
+			Common.msg_to_user('was not possible undefine virtual machine image', Common.ERRO_MSG)
 			return False
 		cmd = shlex.split('sudo rm /var/lib/libvirt/images/' + self.vm_identifier + '.img')		
 		p = subprocess.Popen(cmd).wait()
@@ -110,7 +114,6 @@ class Sap:
 
 	def resume(self):
 		cmd = shlex.split('virsh start ' + self.vm_identifier)
-		p = subprocess.Popen(cmd).wait()
 		if p == 0:
 			Common.msg_to_user('virtual machine was resumed', Common.INFO_MSG)
 		else:
@@ -119,8 +122,7 @@ class Sap:
 		return True
  
 	def communicate(self, instruction):
-		print( "comunicate")
+		Common.msg_to_user(instruction, Common.DBUG_MSG)
 		vm_ip = subprocess.check_output('arp -an | grep \"`virsh dumpxml PineVM | grep \"mac address\" | sed \"s/.*\'\\(.*\\)\'.*/\\1/g\"`\" | awk \'{gsub(/[\\(\\)]/,\"\",$2); print $2}\'', shell=True)[:-1].decode()
 		host_ip = subprocess.check_output('/sbin/ifconfig eth0 | grep \'inet addr\' | cut -d: -f2 | awk \'{print $1}\'', shell=True)[:-1].decode()
-		Common.msg_to_user(instruction, Common.DBUG_MSG)
 		subprocess.Popen('ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@' + vm_ip + ' \'python3 script.py ' + host_ip + ' ' + instruction.decode() + '\'', shell=True)
