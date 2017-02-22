@@ -214,14 +214,7 @@ class Blinker:
 
 	def config(self): 
 		print('--------------------------------')
-		#print('config:')
 		print('	state:       ', Common.get_config_info(['state']))
-		#print('	vm_vcpu:     ', Common.get_config_info(['vm', 'vcpu']))
-		#print('	vm_cpu_set:  ', Common.get_config_info(['vm', 'cpu_set']))
-		#print('	vm_cpu_usage:', Common.get_config_info(['vm', 'cpu_usage']))
-		#print('	vm_ram_usage:', Common.get_config_info(['vm', 'ram_usage']))
-		#if config['process']:
-		#	print('	progress     ', config['process']['progress'])
 		print('--------------------------------')
 
 	def blink(self):

@@ -80,7 +80,7 @@ class Log:
 		TODO: Ver o que exatamente isso ira tratar
 		'''
 		Common.update_config({'state': 'stopped'})
-		#self.vm_controller.stop()
+		self.vm_controller.stop()
 		sys.exit()
 
 	def ping(self, address, msg):
@@ -149,14 +149,12 @@ class Log:
 							self.conns[fileno].close()
 							del self.conns[fileno]
 					if self.processing == False:
-						Common.msg_to_user('SENDING LETTER', Common.DBUG_MSG)
 						self.letter()
 			finally:
 				self.epoll.unregister(self.sock.fileno())
 				self.epoll.close()
 				self.sock.close()
 				Common.update_config({'state': 'stopped'})
-				# self.error_handler()
 		else:
 			pass
 
@@ -202,13 +200,10 @@ class Log:
 
 		3° passo: Avisa o sleigh que o pine parou.
 		'''
-		Common.msg_to_user('stopping VM', Common.INFO_MSG)
-		self.vm_controller.stop()
 		Common.msg_to_user('warning sleigh that pine will stop', Common.INFO_MSG)
 		self.ping(self.c_address, b'\x07' + Log.EOF)
 		conn.sendall(b'stopped' + Log.EOF)
-		Common.msg_to_user('killing pine process', Common.INFO_MSG)
-		Common.update_config({'state': 'stopped'})
+		Common.msg_to_user('killing pine process and stopping virtual machine', Common.INFO_MSG)
 		os.kill(os.getpid(), signal.SIGTERM)
 
 	def letter(self): #instructions
@@ -218,20 +213,18 @@ class Log:
 		2° passo: Registra a conexão com o sleigh na epoll para posteriormente rece-
 				  be-la de forma que não bloqueia o programa.
 		'''
-		Common.msg_to_user('letter', Common.DBUG_MSG)
 		self.pingoutin(self.c_address, b'\x05' + Log.EOF)
+		self.processing = True
 
 	def thanks(self, result):
 		'''
 		Envia o resultado para o sleigh.
 		'''
-		Common.msg_to_user(result, Common.DBUG_MSG)
 		self.ping(self.c_address, b'\x06' + result + Log.EOF)
 		self.processing = False
 
 	def process(self, payload):
 		self.vm_controller.communicate(payload)
-		self.processing = True
 
 	def action(self, msg, conn):		
 		code, payload = msg[:1], msg[1:]

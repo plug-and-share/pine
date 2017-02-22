@@ -69,19 +69,12 @@ class Sap:
 		time.sleep(60)
 		vm_ip = subprocess.check_output('arp -an | grep \"`virsh dumpxml PineVM | grep \"mac address\" | sed \"s/.*\'\\(.*\\)\'.*/\\1/g\"`\" | awk \'{gsub(/[\\(\\)]/,\"\",$2); print $2}\'', shell=True)[:-1].decode()
 		key = open('/home/vipro/.ssh/id_rsa.pub').read()
-		os.system('sshpass -p Omap2014 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@{} \'echo "{}" >>  /home/cupid/.ssh/authorized_keys\''.format(vm_ip, key))
-		#ssh_cmd = '/usr/local/bin/pinesrc/sap_util.sh PineVM'
-		#ssh_cmd = '/home/vipro/Desktop/pine-master/sap_util.sh PineVM'
-		'''child = pexpect.spawn('cat /home/vipro/.ssh/id_rsa.pub | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@' + vm_ip + ' \'cat >> /home/cupid/.ssh/authorized_keys\'', timeout=None)
-		status = child.expect(['password:'])
-		child.sendline('Omap2014')
-		child.expect(pexpect.EOF, timeout=None)
-		child.close()
-		if child.exitstatus == 0:
+		status = os.system('sshpass -p Omap2014 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@{} \'echo "{}" >>  /home/cupid/.ssh/authorized_keys\''.format(vm_ip, key))		
+		if status == 0:
 			Common.msg_to_user('ssh authentication done', Common.INFO_MSG)
 		else:
 			Common.msg_to_user('was not possible authenticate ssh', Common.ERRO_MSG)
-			return False'''
+			return False
 		return True
 
 	def stop(self):		
@@ -125,7 +118,6 @@ class Sap:
 		return True
  
 	def communicate(self, instruction):
-		Common.msg_to_user(instruction, Common.DBUG_MSG)
 		vm_ip = subprocess.check_output('arp -an | grep \"`virsh dumpxml PineVM | grep \"mac address\" | sed \"s/.*\'\\(.*\\)\'.*/\\1/g\"`\" | awk \'{gsub(/[\\(\\)]/,\"\",$2); print $2}\'', shell=True)[:-1].decode()
 		host_ip = subprocess.check_output('/sbin/ifconfig eth0 | grep \'inet addr\' | cut -d: -f2 | awk \'{print $1}\'', shell=True)[:-1].decode()
 		subprocess.Popen('ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@' + vm_ip + ' \'python3 script.py ' + host_ip + ' ' + instruction.decode() + '\'', shell=True)

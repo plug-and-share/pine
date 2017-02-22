@@ -38,9 +38,6 @@ DATE           12/08/2016
 AUTHORS        TASHIRO
 PYTHON_VERSION v3
 '''
-# Dependendcias 
-#	libvirt: sudo apt-get install libvirt-bin
-#	qemu   : sudo apt-get install qemu-utils qemu-kvm
 import errno
 import os
 import shutil
@@ -61,12 +58,13 @@ if __name__ == '__main__':
 			if os.path.exists('/usr/local/bin/pinesrc'):
 				os.system('rm -rf /usr/local/bin/pinesrc')
 				os.system('rm /usr/local/bin/pine')
+				print('[info] pine as uninstalled')
 			else:
 				print('[info] pine is not installed')
 		else:
 			if not os.path.exists('/usr/local/bin/pinesrc'):
 				print('[info] installing dependencies')
-				if os.system('sudo apt-get install libvirt-bin qemu-utils qemu-kvm') != 0:
+				if os.system('sudo apt-get install sshpass libvirt-bin qemu-utils qemu-kvm') != 0:
 					print('[erro] was not possible to install the dependences (libvirt-bin or qemu-utils or qemu-kvm)')
 					exit()	
 				print('[info] copying source files to /usr/local/bin/')
