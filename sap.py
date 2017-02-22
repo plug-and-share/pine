@@ -67,18 +67,20 @@ class Sap:
 		Common.msg_to_user('authenticating ssh with virtual machine', Common.INFO_MSG)
 		time.sleep(60)
 		vm_ip = subprocess.check_output('arp -an | grep \"`virsh dumpxml PineVM | grep \"mac address\" | sed \"s/.*\'\\(.*\\)\'.*/\\1/g\"`\" | awk \'{gsub(/[\\(\\)]/,\"\",$2); print $2}\'', shell=True)[:-1].decode()
-
-		#ssh_cmd = '/usr/local/bin/pinesrc/sap_util.sh ' + self.vm_identifier
-		child = pexpect.spawn('cat /home/vipro/.ssh/id_rsa.pub | ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@'+vm_ip+' \'cat >> /home/cupid/.ssh/authorized_keys\' ', timeout=None)
-		child.expect(['password: '])
+		key = open('/home/vipro/.ssh/id_rsa.pub').read()
+		os.system('sshpass -p Omap2014 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@{} \'echo "{}" >>  /home/cupid/.ssh/authorized_keys\''.format(vm_ip, key))
+		#ssh_cmd = '/usr/local/bin/pinesrc/sap_util.sh PineVM'
+		#ssh_cmd = '/home/vipro/Desktop/pine-master/sap_util.sh PineVM'
+		'''child = pexpect.spawn('cat /home/vipro/.ssh/id_rsa.pub | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null cupid@' + vm_ip + ' \'cat >> /home/cupid/.ssh/authorized_keys\'', timeout=None)
+		status = child.expect(['password:'])
 		child.sendline('Omap2014')
-		child.expect(pexpect.EOF)
+		child.expect(pexpect.EOF, timeout=None)
 		child.close()
 		if child.exitstatus == 0:
 			Common.msg_to_user('ssh authentication done', Common.INFO_MSG)
 		else:
 			Common.msg_to_user('was not possible authenticate ssh', Common.ERRO_MSG)
-			return False
+			return False'''
 		return True
 
 	def stop(self):		
