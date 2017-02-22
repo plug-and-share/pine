@@ -38,6 +38,7 @@ import sys
 import subprocess
 import shlex
 import time
+import os
 
 import pexpect
 
